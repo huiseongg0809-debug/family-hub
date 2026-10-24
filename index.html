@@ -8,32 +8,41 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js">
 </script>
 <script>
-let bgmCtx=null,bgmOn=false,bgmPadTimer=null,bgmPluckTimer=null;
-function bgmNote(freq,t,dur,vol,type){
-  const o=bgmCtx.createOscillator(),g=bgmCtx.createGain();
-  o.type=type||'sine';o.frequency.value=freq;
-  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.9);
-  g.gain.setValueAtTime(vol,t+Math.max(0.9,dur-1.2));g.gain.linearRampToValueAtTime(0,t+dur);
-  o.connect(g);g.connect(bgmCtx.destination);o.start(t);o.stop(t+dur+0.1);
-}
+let bgmCtx=null,bgmOn=false,bgmGain=null,bgmStepTimer=null;
+function bgmNote2(freq,t,dur,vol,type){const o=bgmCtx.createOscillator(),g=bgmCtx.createGain();o.type=type||'sine';o.frequency.value=freq;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.05);g.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(g);g.connect(bgmGain);o.start(t);o.stop(t+dur+0.05);}
 function startBgm(){
-  if(!bgmCtx) bgmCtx=new (window.AudioContext||window.webkitAudioContext)();
-  if(bgmCtx.state==='suspended') bgmCtx.resume();
-  const chords=[[261.63,329.63,392.00],[220.00,261.63,329.63],[174.61,220.00,261.63],[196.00,246.94,293.66]];
-  const penta=[523.25,587.33,659.25,783.99,880.00,1046.50];
-  let ci=0;
-  const pad=()=>{const t=bgmCtx.currentTime;chords[ci%chords.length].forEach(f=>bgmNote(f,t,9,0.035));ci++;};
-  pad();bgmPadTimer=setInterval(pad,8000);
-  bgmPluckTimer=setInterval(()=>{if(!bgmOn)return;const t=bgmCtx.currentTime;bgmNote(penta[Math.floor(Math.random()*penta.length)],t,3,0.03);},2600);
+  if(!bgmCtx)bgmCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(bgmCtx.state==='suspended')bgmCtx.resume();
+  stopBgm();
+  if(!bgmGain){bgmGain=bgmCtx.createGain();bgmGain.gain.value=1;bgmGain.connect(bgmCtx.destination);}
+  else bgmGain.gain.setTargetAtTime(1,bgmCtx.currentTime,0.05);
+  const chords=[[293.66,369.99,440.00,587.33],[220.00,329.63,440.00,554.37],[246.94,293.66,369.99,493.88],[185.00,220.00,277.18,369.99],[196.00,246.94,293.66,392.00],[293.66,369.99,440.00,587.33],[196.00,246.94,293.66,392.00],[220.00,329.63,440.00,554.37]];
+  let step=0;
+  bgmStepTimer=setInterval(()=>{
+    if(!bgmOn)return;
+    const t=bgmCtx.currentTime;
+    const ch=chords[Math.floor(step/8)%8];
+    if(step%8===0)ch.forEach(f=>bgmNote2(f,t,3.4,0.018,'sine'));
+    bgmNote2(ch[step%4],t,0.9,0.035,'sine');
+    step++;
+  },450);
 }
-function stopBgm(){clearInterval(bgmPadTimer);clearInterval(bgmPluckTimer);bgmPadTimer=bgmPluckTimer=null;}
+function stopBgm(){
+  if(bgmStepTimer){clearInterval(bgmStepTimer);bgmStepTimer=null;}
+  if(bgmGain&&bgmCtx)bgmGain.gain.setTargetAtTime(0,bgmCtx.currentTime,0.03);
+}
 function toggleBgm(){
   bgmOn=!bgmOn;
   const b=document.getElementById('bgmBtn');
-  b.textContent=bgmOn?'🎶':'🎵';b.classList.toggle('on',bgmOn);
+  if(b){b.textContent=bgmOn?'🎶':'🎵';b.classList.toggle('on',bgmOn);}
   try{localStorage.setItem('bgm',bgmOn?'1':'0');}catch(e){}
   if(bgmOn)startBgm();else stopBgm();
 }
+document.addEventListener('visibilitychange',()=>{
+  if(!bgmCtx)return;
+  if(document.hidden){if(bgmCtx.state==='running')bgmCtx.suspend();}
+  else if(bgmOn&&bgmCtx.state==='suspended'){bgmCtx.resume();}
+});
 
 let curPf='stock';
 function setPf(k,btn){curPf=k;document.querySelectorAll('#pfTabs .subtab').forEach(b=>b.classList.remove('on'));btn.classList.add('on');loadPf();}
@@ -218,7 +227,7 @@ const auth=firebase.auth(), db=firebase.firestore();
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const myName=()=>localStorage.getItem("famName")||"가족";
 function showTab(id,btn){document.querySelectorAll(".tab").forEach(t=>t.classList.remove("on"));document.getElementById(id).classList.add("on");document.querySelectorAll("nav button").forEach(b=>b.classList.remove("on"));btn.classList.add("on");if(id==="photos")renderGallery();if(id==="chat")loadChat();if(id==="pf")loadPf();}
-async function doLogin(){const idv=document.getElementById("email").value.trim(),e=idv.includes("@")?idv:(idv==="우리 가족"?"gajok@ourhome.site":idv),p=document.getElementById("pw").value;try{await auth.signInWithEmailAndPassword(e,p);}catch(err){document.getElementById("loginMsg").textContent="로그인 실패: 아이디/비밀번호를 확인하세요.";}}
+async function doLogin(){const idv=document.getElementById("email").value.trim(),e=idv.includes("@")?idv:(idv==="우리 가족"?"gajok@ourhome.site":idv),p=document.getElementById("pw").value;try{await auth.signInWithEmailAndPassword(e,p);try{if(localStorage.getItem('bgm')!=='0'){bgmOn=true;startBgm();const bb=document.getElementById('bgmBtn');if(bb){bb.textContent='🎶';bb.classList.add('on');}}}catch(e){}}catch(err){document.getElementById("loginMsg").textContent="로그인 실패: 아이디/비밀번호를 확인하세요.";}}
 function logout(){auth.signOut();}
 auth.onAuthStateChanged(u=>{document.getElementById("login").style.display=u?"none":"block";document.getElementById("app").style.display=u?"block":"none";document.getElementById("logoutBtn").style.display=u?"inline-block":"none";if(u){renderGallery();loadPosts();renderCal();loadChat();}});
 async function delDoc(col,id){if(!confirm("삭제할까요?"))return;await db.collection(col).doc(id).delete();}
