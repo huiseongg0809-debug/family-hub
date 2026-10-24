@@ -1156,7 +1156,8 @@ window.__BLAZEFACE_MODEL__ = {
          the loop steady. It starts on the first mode pick — a user
          gesture, so the context is allowed to run — and the music
          button in the mode bar mutes or resumes it. */
-      var bgmOn = true, bgmStarted = false, bgmTimer = null, bgmGain = null;
+      var bgmOn = (function(){try{return localStorage.getItem('bgm')!=='0';}catch(e){return true;}})(), bgmStarted = false, bgmTimer = null, bgmGain = null;
+  try{var _bo=document.getElementById("ic-bgm-on"),_bf=document.getElementById("ic-bgm-off");if(_bo)_bo.style.display=bgmOn?"block":"none";if(_bf)_bf.style.display=bgmOn?"none":"block";}catch(e){}
       var bgmStep = 0, bgmNextAt = 0;
       var bgmSources = [];
       var BGM_VOL = 0.9;
@@ -1613,8 +1614,7 @@ window.__BLAZEFACE_MODEL__ = {
         modeChosen = true;
         startScreenEl.classList.remove("on");
         endDrag(false);
-        newGame();
-        startBgm();
+        newGame(); if(bgmOn) startBgm();
         warmFaceModel();
       }
 
@@ -3102,6 +3102,7 @@ window.__BLAZEFACE_MODEL__ = {
       });
       document.getElementById("btn-bgm").addEventListener("click", function () {
         bgmOn = !bgmOn;
+        try{localStorage.setItem('bgm',bgmOn?'1':'0');}catch(e){}
         document.getElementById("ic-bgm-on").style.display = bgmOn ? "block" : "none";
         document.getElementById("ic-bgm-off").style.display = bgmOn ? "none" : "block";
         if (bgmOn) startBgm(); else stopBgm();
