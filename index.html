@@ -242,10 +242,10 @@ async function renderGallery(){
   if(up)up.style.display=curAlbum==='특별관'?'none':'';
   if(curAlbum==='특별관'){await renderSpecial();return;}
   const seeds=seedPhotos().filter(p=>p.album===curAlbum);
-  let html=seeds.map((p,i)=>`<div><img src="${p.src}"><div style="font-size:12px;color:#999;margin-top:4px">${p.album} <a href="${p.src}" download="가족사진-${p.album}-${i+1}.jpg" class="mini" style="text-decoration:none">저장</a></div></div>`).join('');
+  let html=seeds.map((p,i)=>`<div><img src="${p.src}"><div style="font-size:12px;color:#999;margin-top:4px">${p.album} <a href="${p.src}" download="가족사진-${p.album}-${i+1}.jpg" class="mini" style="text-decoration:none" onclick="return confirm('다운로드 하시겠습니까?')">저장</a></div></div>`).join('');
   if(curAlbum==='개인 사진'){
     const q=await db.collection('photos').orderBy('createdAt','desc').limit(100).get();
-    html+=q.docs.filter(d=>d.data().album!=='특별관').map(d=>`<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <a href="${d.data().data}" download="가족사진-${esc(d.data().author)}.jpg" class="mini" style="text-decoration:none">저장</a> <button class="mini" onclick="delDoc('photos','${d.id}');renderGallery()">삭제</button></div></div>`).join('');
+    html+=q.docs.filter(d=>d.data().album!=='특별관').map(d=>`<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <a href="${d.data().data}" download="가족사진-${esc(d.data().author)}.jpg" class="mini" style="text-decoration:none" onclick="return confirm('다운로드 하시겠습니까?')">저장</a> <button class="mini" onclick="delDoc('photos','${d.id}');renderGallery()">삭제</button></div></div>`).join('');
   }
   grid.innerHTML=html||'<p>이 앨범에 사진이 없어요.</p>';
 }
@@ -257,7 +257,7 @@ async function renderSpecial(){
     const docs=q.docs.filter(d=>{const x=d.data();return x.album==='특별관'&&x.event===curEvent;}).sort((a,b)=>ts(b.data().createdAt)-ts(a.data().createdAt));
     let html=`<div class="card"><button class="mini" onclick="curEvent=null;renderGallery()">← 행사 목록</button> <b style="font-size:17px">${esc(curEvent)}</b></div>`;
     if(!docs.length)html+='<p>아직 사진이 없어요. 아래에서 올려보세요.</p>';
-    html+=`<div class="grid">`+docs.map(d=>`<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <a href="${d.data().data}" download="가족사진-${esc(d.data().author)}.jpg" class="mini" style="text-decoration:none">저장</a> <button class="mini" onclick="delDoc('photos','${d.id}');renderGallery()">삭제</button></div></div>`).join('')+`</div>`;
+    html+=`<div class="grid">`+docs.map(d=>`<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <a href="${d.data().data}" download="가족사진-${esc(d.data().author)}.jpg" class="mini" style="text-decoration:none" onclick="return confirm('다운로드 하시겠습니까?')">저장</a> <button class="mini" onclick="delDoc('photos','${d.id}');renderGallery()">삭제</button></div></div>`).join('')+`</div>`;
     html+=`<div class="card"><input type="file" id="eventPhotoFile" accept="image/*"><input id="eventPhotoName" placeholder="이름"><button class="act" onclick="uploadPhoto('eventPhotoFile','eventPhotoName',{album:'특별관',event:curEvent})">사진 올리기</button></div>`;
     grid.innerHTML=html;
     return;
