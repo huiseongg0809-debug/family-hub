@@ -127,7 +127,7 @@ h3.sec::after{content:"";position:absolute;left:4px;bottom:0;width:46px;height:4
     <h3 class="sec">🖼️ 갤러리</h3>
     <div class="albums" id="albumCards"></div>
     <div class="grid" id="photoGrid"></div>
-    <div class="card"><input type="file" id="photoFile" accept="image/*"><input id="photoName" placeholder="이름 (예: 엄마)"><button class="act" onclick="uploadPhoto()">사진 올리기</button><p style="font-size:12px;color:var(--muted)">올린 사진은 '개인 사진' 앨범에 들어가고, 전 가족이 볼 수 있어요.</p></div>
+    <div class="card" id="mainUploadCard"><input type="file" id="photoFile" accept="image/*"><input id="photoName" placeholder="이름 (예: 엄마)"><button class="act" onclick="uploadPhoto()">사진 올리기</button><p style="font-size:12px;color:var(--muted)">올린 사진은 '개인 사진' 앨범에 들어가고, 전 가족이 볼 수 있어요.</p></div>
   </section>
 
   <section id="board" class="tab">
@@ -196,14 +196,14 @@ async function delDoc(col,id){if(!confirm("삭제할까요?"))return;await db.co
 
 // 갤러리
 function compress(file){return new Promise(res=>{const img=new Image();img.onload=()=>{const m=1000,s=Math.min(1,m/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=img.width*s;c.height=img.height*s;c.getContext("2d").drawImage(img,0,0,c.width,c.height);res(c.toDataURL("image/jpeg",0.75));};img.src=URL.createObjectURL(file);});}
-async function uploadPhoto(){const f=document.getElementById("photoFile").files[0];if(!f)return alert("사진을 선택하세요.");const data=await compress(f);const name=document.getElementById("photoName").value.trim()||myName();localStorage.setItem("famName",name);await db.collection("photos").add({author:name,data,createdAt:firebase.firestore.FieldValue.serverTimestamp()});document.getElementById("photoFile").value="";renderGallery();}
+async function uploadPhoto(fileId,nameId,extra){fileId=fileId||"photoFile";nameId=nameId||"photoName";const f=document.getElementById(fileId).files[0];if(!f)return alert("사진을 선택하세요.");const data=await compress(f);const name=document.getElementById(nameId).value.trim()||myName();localStorage.setItem("famName",name);await db.collection("photos").add(Object.assign({author:name,data,createdAt:firebase.firestore.FieldValue.serverTimestamp()},extra||{}));document.getElementById(fileId).value="";renderGallery();}
 let curAlbum='단체 사진';
 function renderAlbums(){
   const box=document.getElementById('albumCards');
   if(!box||box.children.length) return;
   const hero=document.querySelector('.hero img');
   const strip=[...document.querySelectorAll('.strip img')];
-  const covers=[['단체 사진',hero?hero.src:''],['개인 사진',strip[2]?strip[2].src:''],['짤방',strip[9]?strip[9].src:'']];
+  const covers=[['단체 사진',hero?hero.src:''],['개인 사진',strip[2]?strip[2].src:''],['짤방',strip[9]?strip[9].src:''],['특별관',strip[8]?strip[8].src:'']];
   box.innerHTML=covers.map(([name,src],i)=>`<button class="album${i===0?' on':''}" onclick="setAlbum('${name}',this)"><img src="${src}" alt="${name}"></button>`).join('');
 }
 renderAlbums();
@@ -216,16 +216,64 @@ function seedPhotos(){
   strip.forEach((im,i)=>seeds.push({album:albumByStrip[i]||'가족', src:im.src}));
   return seeds;
 }
-function setAlbum(a,btn){curAlbum=a;document.querySelectorAll('#albumCards .album').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderGallery();}
+let curEvent=null;
+function setAlbum(a,btn){curAlbum=a;curEvent=null;document.querySelectorAll('#albumCards .album').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderGallery();}
 async function renderGallery(){
   const grid=document.getElementById('photoGrid');
+  const up=document.getElementById('mainUploadCard');
+  if(up)up.style.display=curAlbum==='특별관'?'none':'';
+  if(curAlbum==='특별관'){await renderSpecial();return;}
   const seeds=seedPhotos().filter(p=>p.album===curAlbum);
   let html=seeds.map(p=>`<div><img src="${p.src}"><div style="font-size:12px;color:#999;margin-top:4px">${p.album}</div></div>`).join('');
   if(curAlbum==='개인 사진'){
-    const q=await db.collection('photos').orderBy('createdAt','desc').limit(60).get();
-    html+=q.docs.map(d=>`<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <button class="mini" onclick="delDoc('photos','${d.id}');renderGallery()">삭제</button></div></div>`).join('');
+    const q=await db.collection('photos').orderBy('createdAt','desc').limit(100).get();
+    html+=q.docs.filter(d=>d.data().album!=='특별관').map(d=>`<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <button class="mini" onclick="delDoc('photos','${d.id}');renderGallery()">삭제</button></div></div>`).join('');
   }
   grid.innerHTML=html||'<p>이 앨범에 사진이 없어요.</p>';
+}
+function ts(v){return v&&v.toMillis?v.toMillis():(v||0);}
+async function renderSpecial(){
+  const grid=document.getElementById('photoGrid');
+  if(curEvent){
+    const q=await db.collection('photos').limit(200).get();
+    const docs=q.docs.filter(d=>{const x=d.data();return x.album==='특별관'&&x.event===curEvent;}).sort((a,b)=>ts(b.data().createdAt)-ts(a.data().createdAt));
+    let html=`<div class="card"><button class="mini" onclick="curEvent=null;renderGallery()">← 행사 목록</button> <b style="font-size:17px">${esc(curEvent)}</b></div>`;
+    if(!docs.length)html+='<p>아직 사진이 없어요. 아래에서 올려보세요.</p>';
+    html+=`<div class="grid">`+docs.map(d=>`<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <button class="mini" onclick="delDoc('photos','${d.id}');renderGallery()">삭제</button></div></div>`).join('')+`</div>`;
+    html+=`<div class="card"><input type="file" id="eventPhotoFile" accept="image/*"><input id="eventPhotoName" placeholder="이름"><button class="act" onclick="uploadPhoto('eventPhotoFile','eventPhotoName',{album:'특별관',event:curEvent})">사진 올리기</button></div>`;
+    grid.innerHTML=html;
+    return;
+  }
+  const aq=await db.collection('eventAlbums').orderBy('createdAt','desc').limit(50).get();
+  const pq=await db.collection('photos').limit(200).get();
+  const specials=pq.docs.filter(d=>d.data().album==='특별관');
+  let html=`<div class="card"><input id="eventName" placeholder="행사 이름 (예: 칠순잔치, 생일 파티)"><button class="act" onclick="createEvent()">행사 만들기</button><p style="font-size:12px;color:var(--muted)">칠순잔치, 팔순잔치, 생일 파티 같은 행사 이름을 만들어 사진을 모아보세요.</p></div>`;
+  if(!aq.docs.length)html+='<p>아직 만든 행사가 없어요. 위에서 행사 이름을 만들어보세요.</p>';
+  aq.docs.forEach(doc=>{
+    const name=doc.data().name;
+    const ph=specials.filter(d=>d.data().event===name);
+    const thumb=ph.length?ph[0].data().data:'';
+    html+=`<div class="card event-card" data-name="${esc(name)}" style="cursor:pointer;display:flex;gap:12px;align-items:center">${thumb?`<img src="${thumb}" style="width:64px;height:64px;object-fit:cover;border-radius:12px">`:`<div style="width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,#ff6b4a,#ff9e57);display:flex;align-items:center;justify-content:center;font-size:28px">🎉</div>`}<div style="flex:1"><b>${esc(name)}</b><p style="color:var(--muted);font-size:13px;margin:2px 0">사진 ${ph.length}장</p></div><button class="mini event-del">삭제</button></div>`;
+  });
+  grid.innerHTML=html;
+  grid.querySelectorAll('.event-card').forEach(el=>{
+    el.addEventListener('click',()=>{curEvent=el.dataset.name;renderGallery();});
+    el.querySelector('.event-del').addEventListener('click',async ev=>{ev.stopPropagation();await deleteEvent(el.dataset.name);});
+  });
+}
+async function createEvent(){
+  const el=document.getElementById('eventName');const name=(el.value||'').trim();
+  if(!name){alert('행사 이름을 입력하세요.');return;}
+  await db.collection('eventAlbums').add({name,createdAt:Date.now(),author:'가족'});
+  el.value='';renderGallery();
+}
+async function deleteEvent(name){
+  if(!confirm('['+name+'] 행사와 안의 사진을 모두 삭제할까요?'))return;
+  const aq=await db.collection('eventAlbums').where('name','==',name).get();
+  aq.docs.forEach(d=>d.ref.delete());
+  const pq=await db.collection('photos').where('album','==','특별관').get();
+  const jobs=[];pq.docs.forEach(d=>{if(d.data().event===name)jobs.push(d.ref.delete());});
+  await Promise.all(jobs);renderGallery();
 }
 
 // 게시판
