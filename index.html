@@ -39,7 +39,7 @@ let curPf='stock';
 function setPf(k,btn){curPf=k;document.querySelectorAll('#pfTabs .subtab').forEach(b=>b.classList.remove('on'));btn.classList.add('on');loadPf();}
 async function loadPf(){
   const q=await db.collection('pf').where('kind','==',curPf).get();
-  const docs=q.docs.sort((a,b)=>(b.data().createdAt||0)-(a.data().createdAt||0));
+  const docs=q.docs.sort((a,b)=>{const pa=parseFloat(a.data().pct)||0,pb=parseFloat(b.data().pct)||0;if(pb!==pa)return pb-pa;const ma=a.data().marketCap||0,mb=b.data().marketCap||0;if(mb!==ma)return mb-ma;return (b.data().createdAt||0)-(a.data().createdAt||0);});
   let sum=0;docs.forEach(d=>sum+=parseFloat(d.data().pct)||0);
   const box=document.getElementById('pfList');
   box.innerHTML=docs.map(d=>`<div class="card" style="display:flex;gap:10px;align-items:center"><div style="flex:1"><b>${esc(d.data().name)}</b></div><div style="font-weight:800">${d.data().pct}%</div><button class="mini" onclick="delDoc('pf','${d.id}');loadPf()">삭제</button></div>`).join('')||'<p>아직 보유 목록이 없어요.</p>';
@@ -50,7 +50,16 @@ async function addPf(){
   const pct=parseFloat(document.getElementById('pfPct').value);
   if(!name)return alert('이름을 입력하세요.');
   if(isNaN(pct))return alert('퍼센테지를 입력하세요.');
-  await db.collection('pf').add({kind:curPf,name,pct,createdAt:Date.now()});
+  let mc=null;
+  if(curPf==='coin'){
+    try{
+      const sr=await fetch('https://api.coingecko.com/api/v3/search?query='+encodeURIComponent(name)).then(r=>r.json());
+      let coin=null;
+      if(sr.coins&&sr.coins.length){const low=name.toLowerCase();coin=sr.coins.find(c=>c.symbol.toLowerCase()===low)||sr.coins.find(c=>c.name.toLowerCase()===low)||sr.coins[0];}
+      if(coin){const mk=await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids='+coin.id).then(r=>r.json());if(mk[0])mc=mk[0].market_cap;}
+    }catch(e){}
+  }
+  await db.collection('pf').add({kind:curPf,name,pct,marketCap:mc,createdAt:Date.now()});
   document.getElementById('pfName').value='';document.getElementById('pfPct').value='';
   loadPf();
 }
