@@ -60,7 +60,7 @@ body{background-color:#fff7ec;background-image:radial-gradient(600px 300px at 8%
 .strip img{height:112px;width:auto;border-radius:16px;box-shadow:0 3px 10px rgba(0,0,0,.12);flex:0 0 auto}
 h3.sec{position:relative;padding-bottom:8px}
 h3.sec::after{content:"";position:absolute;left:4px;bottom:0;width:46px;height:4px;border-radius:4px;background:linear-gradient(90deg,#ff6b4a,#ffb347)}
-.chips{display:flex;gap:8px;overflow-x:auto;margin:2px 0 14px}.chip{flex:0 0 auto;padding:8px 15px;border-radius:999px;border:0;background:#fff;font-weight:700;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,.06)}.chip.on{background:linear-gradient(135deg,#ff6b4a,#ff9e57);color:#fff}
+.albums{display:flex;gap:10px;margin:2px 0 14px}.album{flex:1;padding:0;border:3px solid transparent;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.08)}.album img{width:100%;aspect-ratio:1;object-fit:cover;display:block}.album.on{border-color:#ff6b4a;box-shadow:0 0 0 2px #ffb59e,0 2px 8px rgba(0,0,0,.12)}
 </style>
 </head>
 <body>
@@ -97,15 +97,9 @@ h3.sec::after{content:"";position:absolute;left:4px;bottom:0;width:46px;height:4
 <main>
   <section id="photos" class="tab on">
     <h3 class="sec">🖼️ 갤러리</h3>
-    <div class="chips" id="albumChips">
-      <button class="chip on" onclick="setAlbum('전체',this)">전체</button>
-      <button class="chip" onclick="setAlbum('단체 사진',this)">단체 사진</button>
-      <button class="chip" onclick="setAlbum('아이들',this)">아이들</button>
-      <button class="chip" onclick="setAlbum('가족',this)">가족</button>
-      <button class="chip" onclick="setAlbum('올린 사진',this)">올린 사진</button>
-    </div>
+    <div class="albums" id="albumCards"></div>
     <div class="grid" id="photoGrid"></div>
-    <div class="card"><input type="file" id="photoFile" accept="image/*"><input id="photoName" placeholder="이름 (예: 엄마)"><button class="act" onclick="uploadPhoto()">사진 올리기</button><p style="font-size:12px;color:var(--muted)">올린 사진은 '올린 사진' 앨범에 들어가고, 전 가족이 볼 수 있어요.</p></div>
+    <div class="card"><input type="file" id="photoFile" accept="image/*"><input id="photoName" placeholder="이름 (예: 엄마)"><button class="act" onclick="uploadPhoto()">사진 올리기</button><p style="font-size:12px;color:var(--muted)">올린 사진은 '개인 사진' 앨범에 들어가고, 전 가족이 볼 수 있어요.</p></div>
   </section>
 
   <section id="board" class="tab">
@@ -167,22 +161,31 @@ async function delDoc(col,id){if(!confirm("삭제할까요?"))return;await db.co
 // 갤러리
 function compress(file){return new Promise(res=>{const img=new Image();img.onload=()=>{const m=1000,s=Math.min(1,m/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=img.width*s;c.height=img.height*s;c.getContext("2d").drawImage(img,0,0,c.width,c.height);res(c.toDataURL("image/jpeg",0.75));};img.src=URL.createObjectURL(file);});}
 async function uploadPhoto(){const f=document.getElementById("photoFile").files[0];if(!f)return alert("사진을 선택하세요.");const data=await compress(f);const name=document.getElementById("photoName").value.trim()||myName();localStorage.setItem("famName",name);await db.collection("photos").add({author:name,data,createdAt:firebase.firestore.FieldValue.serverTimestamp()});document.getElementById("photoFile").value="";renderGallery();}
-let curAlbum='전체';
+let curAlbum='단체 사진';
+function renderAlbums(){
+  const box=document.getElementById('albumCards');
+  if(!box||box.children.length) return;
+  const hero=document.querySelector('.hero img');
+  const strip=[...document.querySelectorAll('.strip img')];
+  const covers=[['단체 사진',hero?hero.src:''],['개인 사진',strip[2]?strip[2].src:''],['짤방',strip[9]?strip[9].src:'']];
+  box.innerHTML=covers.map(([name,src],i)=>`<button class="album${i===0?' on':''}" onclick="setAlbum('${name}',this)"><img src="${src}" alt="${name}"></button>`).join('');
+}
+renderAlbums();
 function seedPhotos(){
   const hero=document.querySelector('.hero img');
   const strip=[...document.querySelectorAll('.strip img')];
-  const albumByStrip=['가족','아이들','아이들','가족','가족','가족','가족','가족','가족','가족','가족'];
+  const albumByStrip=['짤방','개인 사진','개인 사진','개인 사진','개인 사진','개인 사진','개인 사진','개인 사진','짤방','짤방','개인 사진'];
   const seeds=[];
   if(hero) seeds.push({album:'단체 사진', src:hero.src});
   strip.forEach((im,i)=>seeds.push({album:albumByStrip[i]||'가족', src:im.src}));
   return seeds;
 }
-function setAlbum(a,btn){curAlbum=a;document.querySelectorAll('#albumChips .chip').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderGallery();}
+function setAlbum(a,btn){curAlbum=a;document.querySelectorAll('#albumCards .album').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderGallery();}
 async function renderGallery(){
   const grid=document.getElementById('photoGrid');
-  const seeds=seedPhotos().filter(p=>curAlbum==='전체'||p.album===curAlbum);
+  const seeds=seedPhotos().filter(p=>p.album===curAlbum);
   let html=seeds.map(p=>`<div><img src="${p.src}"><div style="font-size:12px;color:#999;margin-top:4px">${p.album}</div></div>`).join('');
-  if(curAlbum==='전체'||curAlbum==='올린 사진'){
+  if(curAlbum==='개인 사진'){
     const q=await db.collection('photos').orderBy('createdAt','desc').limit(60).get();
     html+=q.docs.map(d=>`<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <button class="mini" onclick="delDoc('photos','${d.id}');renderGallery()">삭제</button></div></div>`).join('');
   }
