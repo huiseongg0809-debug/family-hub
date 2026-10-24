@@ -126,7 +126,7 @@ h3.sec::after{content:"";position:absolute;left:4px;bottom:0;width:46px;height:4
   <h2 style="margin:8px 0 4px">우리 가족 사이트</h2>
   <p style="color:var(--muted);font-size:14px;margin:0 0 14px">가족 공용 아이디로 로그인하세요</p>
   <div class="card">
-    <input id="email" value="family@ourhome.site" placeholder="아이디(이메일)">
+    <input id="email" value="우리 가족" placeholder="아이디">
     <input id="pw" type="password" placeholder="비밀번호">
     <button onclick="doLogin()">로그인</button>
     <p id="loginMsg" style="color:#e74c3c;font-size:13px"></p>
@@ -207,7 +207,7 @@ const auth=firebase.auth(), db=firebase.firestore();
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const myName=()=>localStorage.getItem("famName")||"가족";
 function showTab(id,btn){document.querySelectorAll(".tab").forEach(t=>t.classList.remove("on"));document.getElementById(id).classList.add("on");document.querySelectorAll("nav button").forEach(b=>b.classList.remove("on"));btn.classList.add("on");if(id==="photos")renderGallery();if(id==="chat")loadChat();if(id==="pf")loadPf();}
-async function doLogin(){const e=document.getElementById("email").value.trim(),p=document.getElementById("pw").value;try{await auth.signInWithEmailAndPassword(e,p);}catch(err){document.getElementById("loginMsg").textContent="로그인 실패: 아이디/비밀번호를 확인하세요.";}}
+async function doLogin(){const idv=document.getElementById("email").value.trim(),e=idv.includes("@")?idv:(idv==="우리 가족"?"gajok@ourhome.site":idv),p=document.getElementById("pw").value;try{await auth.signInWithEmailAndPassword(e,p);}catch(err){document.getElementById("loginMsg").textContent="로그인 실패: 아이디/비밀번호를 확인하세요.";}}
 function logout(){auth.signOut();}
 auth.onAuthStateChanged(u=>{document.getElementById("login").style.display=u?"none":"block";document.getElementById("app").style.display=u?"block":"none";document.getElementById("logoutBtn").style.display=u?"inline-block":"none";if(u){renderGallery();loadPosts();renderCal();loadChat();}});
 async function delDoc(col,id){if(!confirm("삭제할까요?"))return;await db.collection(col).doc(id).delete();}
@@ -242,10 +242,10 @@ async function renderGallery(){
   if(up)up.style.display=curAlbum==='특별관'?'none':'';
   if(curAlbum==='특별관'){await renderSpecial();return;}
   const seeds=seedPhotos().filter(p=>p.album===curAlbum);
-  let html=seeds.map(p=>`<div><img src="${p.src}"><div style="font-size:12px;color:#999;margin-top:4px">${p.album}</div></div>`).join('');
+  let html=seeds.map((p,i)=>`<div><img src="${p.src}"><div style="font-size:12px;color:#999;margin-top:4px">${p.album} <a href="${p.src}" download="가족사진-${p.album}-${i+1}.jpg" class="mini" style="text-decoration:none">저장</a></div></div>`).join('');
   if(curAlbum==='개인 사진'){
     const q=await db.collection('photos').orderBy('createdAt','desc').limit(100).get();
-    html+=q.docs.filter(d=>d.data().album!=='특별관').map(d=>`<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <button class="mini" onclick="delDoc('photos','${d.id}');renderGallery()">삭제</button></div></div>`).join('');
+    html+=q.docs.filter(d=>d.data().album!=='특별관').map(d=>`<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <a href="${d.data().data}" download="가족사진-${esc(d.data().author)}.jpg" class="mini" style="text-decoration:none">저장</a> <button class="mini" onclick="delDoc('photos','${d.id}');renderGallery()">삭제</button></div></div>`).join('');
   }
   grid.innerHTML=html||'<p>이 앨범에 사진이 없어요.</p>';
 }
@@ -257,7 +257,7 @@ async function renderSpecial(){
     const docs=q.docs.filter(d=>{const x=d.data();return x.album==='특별관'&&x.event===curEvent;}).sort((a,b)=>ts(b.data().createdAt)-ts(a.data().createdAt));
     let html=`<div class="card"><button class="mini" onclick="curEvent=null;renderGallery()">← 행사 목록</button> <b style="font-size:17px">${esc(curEvent)}</b></div>`;
     if(!docs.length)html+='<p>아직 사진이 없어요. 아래에서 올려보세요.</p>';
-    html+=`<div class="grid">`+docs.map(d=>`<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <button class="mini" onclick="delDoc('photos','${d.id}');renderGallery()">삭제</button></div></div>`).join('')+`</div>`;
+    html+=`<div class="grid">`+docs.map(d=>`<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <a href="${d.data().data}" download="가족사진-${esc(d.data().author)}.jpg" class="mini" style="text-decoration:none">저장</a> <button class="mini" onclick="delDoc('photos','${d.id}');renderGallery()">삭제</button></div></div>`).join('')+`</div>`;
     html+=`<div class="card"><input type="file" id="eventPhotoFile" accept="image/*"><input id="eventPhotoName" placeholder="이름"><button class="act" onclick="uploadPhoto('eventPhotoFile','eventPhotoName',{album:'특별관',event:curEvent})">사진 올리기</button></div>`;
     grid.innerHTML=html;
     return;
