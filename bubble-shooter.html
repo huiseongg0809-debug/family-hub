@@ -59,7 +59,7 @@ function newGame(){
   document.getElementById('score').textContent='점수 0';
 }
 function neighbors(row,col){
-  const off=row%2?[[1,0],[1,-1],[0,1],[0,-1],[-1,0],[-1,-1]]:[[1,1],[1,0],[0,1],[0,-1],[-1,1],[-1,0]];
+  const off=row%2?[[1,1],[1,0],[0,1],[0,-1],[-1,1],[-1,0]]:[[1,0],[1,-1],[0,1],[0,-1],[-1,0],[-1,-1]];
   return off.map(([dr,dc])=>[row+dr,col+dc]).filter(([r,c])=>r>=0&&c>=0&&c<COLS&&r<grid.length);
 }
 function groupAt(row,col){
@@ -85,8 +85,8 @@ function stickBubble(x,y,type){
   while(grid.length<=row)grid.push(new Array(COLS).fill(null));
   let col=Math.round((x-R-(row%2?R:0))/D);col=Math.max(0,Math.min(COLS-1,col));
   if(grid[row][col]!==null&&grid[row][col]!==undefined){
-    let found=null;
-    for(let d=1;d<4&&!found;d++)for(let r=Math.max(0,row-d);r<=row+d&&!found;r++){if(!grid[r])continue;for(let c=0;c<COLS;c++){if(grid[r][c]===null||grid[r][c]===undefined){const p=cellXY(r,c);if(Math.hypot(p.x-x,p.y-y)<D*1.6){found=[r,c];break;}}}}
+    let found=null,best=1e9;
+    for(let d=0;d<4;d++)for(let r=Math.max(0,row-d);r<=row+d;r++){if(!grid[r])continue;for(let c=0;c<COLS;c++){if(grid[r][c]===null||grid[r][c]===undefined){const p=cellXY(r,c);const dd=Math.hypot(p.x-x,p.y-y);if(dd<D*1.6&&dd<best){best=dd;found=[r,c];}}}}
     if(!found){over=true;return;}
     row=found[0];col=found[1];
   }
@@ -115,6 +115,10 @@ function stickBubble(x,y,type){
 }
 function update(dt){
   if(!flying||over||win)return;
+  let rem=dt;
+  while(rem>0&&flying){const st=Math.min(rem,0.008);stepFly(st);rem-=st;}
+}
+function stepFly(dt){
   flying.x+=flying.vx*dt;flying.y+=flying.vy*dt;
   if(flying.x<R){flying.x=R;flying.vx*=-1;}
   if(flying.x>W-R){flying.x=W-R;flying.vx*=-1;}
@@ -209,7 +213,7 @@ function stopBgm(){
 function toggleBgm(){bgmOn=!bgmOn;document.getElementById('bgmBtn').textContent=bgmOn?'🎶':'🎵';if(bgmOn)startBgm();else stopBgm();}
 let last=performance.now();
 function loop(now){const dt=Math.min(0.05,(now-last)/1000);last=now;update(dt);
-  let d=aimTarget-aim;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;aim+=d*(1-Math.exp(-dt*14));
+  let d=aimTarget-aim;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;aim+=d*(1-Math.exp(-dt*7));
   particles.forEach(pt=>{pt.x+=pt.vx*dt;pt.y+=pt.vy*dt;pt.vy+=300*dt;pt.life-=dt;});particles=particles.filter(pt=>pt.life>0);
   rings.forEach(r=>{r.r+=140*dt;r.life-=dt;});rings=rings.filter(r=>r.life>0);
   popups.forEach(pp=>{pp.y-=40*dt;pp.life-=dt;});popups=popups.filter(pp=>pp.life>0);
