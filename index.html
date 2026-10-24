@@ -4,110 +4,144 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>우리 가족 사이트</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
-*{box-sizing:border-box} body{margin:0;font-family:-apple-system,"Noto Sans KR",sans-serif;background:#fff8ec;color:#333}
-header{background:#ff9f43;color:#fff;padding:14px 16px;font-size:20px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
-header button{background:rgba(255,255,255,.25);border:0;color:#fff;padding:6px 12px;border-radius:20px;font-size:13px}
-#login{max-width:400px;margin:60px auto;padding:24px;text-align:center}
-#login input{width:100%;padding:12px;margin:6px 0;border:1px solid #ddd;border-radius:10px;font-size:15px}
-#login button{width:100%;padding:13px;background:#ff9f43;color:#fff;border:0;border-radius:10px;font-size:16px;font-weight:700;margin-top:8px}
-nav{display:flex;overflow-x:auto;background:#fff;border-bottom:1px solid #eee;position:sticky;top:0;z-index:5}
-nav button{flex:1;min-width:64px;padding:12px 4px;border:0;background:#fff;font-size:14px;color:#888}
-nav button.on{color:#ff9f43;font-weight:700;border-bottom:3px solid #ff9f43}
-main{max-width:720px;margin:0 auto;padding:16px;padding-bottom:60px}
+*{box-sizing:border-box} :root{--coral:#ff6b4a;--amber:#ffb347;--ink:#2d2a26;--muted:#8a8378;--line:#efe4d2}
+body{margin:0;font-family:"Noto Sans KR",-apple-system,sans-serif;background:#fff7ec;color:var(--ink)}
+header{background:linear-gradient(135deg,#ff6b4a,#ff9e57);color:#fff;padding:20px 18px 22px;border-radius:0 0 26px 26px;box-shadow:0 4px 18px rgba(255,107,74,.35);display:flex;justify-content:space-between;align-items:center}
+header .t{font-size:22px;font-weight:900} header .s{font-size:12px;opacity:.9;margin-top:2px}
+header button{background:rgba(255,255,255,.28);border:0;color:#fff;padding:7px 14px;border-radius:999px;font-size:13px;font-weight:700}
+#login{max-width:400px;margin:56px auto;padding:8px 20px;text-align:center}
+#login .hero{font-size:64px}
+#login .card{padding:28px 22px}
+#login input{width:100%;padding:13px;margin:7px 0;border:1.5px solid var(--line);border-radius:13px;font-size:15px;background:#fffdf8}
+#login button{width:100%;padding:14px;background:linear-gradient(135deg,#ff6b4a,#ff9e57);color:#fff;border:0;border-radius:13px;font-size:16px;font-weight:900;margin-top:10px;box-shadow:0 4px 12px rgba(255,107,74,.35)}
+nav{display:flex;gap:6px;overflow-x:auto;background:#fff7ec;padding:12px 14px;position:sticky;top:0;z-index:5}
+nav button{flex:0 0 auto;padding:9px 15px;border:0;background:#fff;border-radius:999px;font-size:14px;font-weight:700;color:#777;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+nav button.on{background:var(--ink);color:#fff}
+main{max-width:720px;margin:0 auto;padding:6px 16px 70px}
 .tab{display:none}.tab.on{display:block}
-.card{background:#fff;border:1px solid #f0e6d2;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
-.card .meta{font-size:12px;color:#999;margin-bottom:6px}
-input,textarea,select{width:100%;padding:10px;margin:5px 0;border:1px solid #ddd;border-radius:10px;font-size:15px}
-button.act{background:#ff9f43;color:#fff;border:0;padding:11px 16px;border-radius:10px;font-size:15px;font-weight:700}
-button.mini{background:#f5f0e6;border:0;padding:6px 10px;border-radius:8px;font-size:13px}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px}
+h3.sec{font-size:17px;font-weight:900;margin:18px 4px 10px}
+.card{background:#fff;border-radius:20px;padding:16px;margin-bottom:12px;box-shadow:0 2px 14px rgba(120,80,20,.08)}
+.card .meta{font-size:12px;color:var(--muted);margin-bottom:6px}
+input,textarea,select{width:100%;padding:12px;margin:5px 0;border:1.5px solid var(--line);border-radius:13px;font-size:15px;background:#fffdf8}
+button.act{background:linear-gradient(135deg,#ff6b4a,#ff9e57);color:#fff;border:0;padding:12px 18px;border-radius:13px;font-size:15px;font-weight:900;box-shadow:0 3px 10px rgba(255,107,74,.3)}
+button.mini{background:#f7efe2;border:0;padding:6px 11px;border-radius:999px;font-size:13px;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
 #calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
-#calgrid div{padding:8px 0;border-radius:8px;font-size:14px}
-#calgrid div.has{background:#ffe8c7;font-weight:700}
-#chatbox{height:55vh;overflow-y:auto;border:1px solid #eee;border-radius:12px;padding:10px;margin-bottom:10px;background:#fffdf8}
-.msg{margin:8px 0}.msg b{color:#ff9f43}
-#board8{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;max-width:400px;margin:10px auto}
-#board8 div{aspect-ratio:1;border-radius:5px;background:#f5efe4;border:1px solid #eee}
-#tray{display:flex;gap:10px;justify-content:center;margin:10px 0}
-.piece{display:grid;gap:2px;cursor:pointer;border:2px solid transparent;border-radius:8px;padding:4px}
-.piece.sel{border-color:#ff9f43;background:#fff3e0}
-.piece div{width:20px;height:20px;border-radius:4px}
-table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:8px;border-bottom:1px solid #eee;text-align:left}
+#calgrid div{padding:9px 0;border-radius:10px;font-size:14px}
+#calgrid div.has{background:#ffe8c7;font-weight:900}
+#chatbox{height:55vh;overflow-y:auto;border:1.5px solid var(--line);border-radius:16px;padding:12px;margin-bottom:10px;background:#fffdf8}
+.msg{margin:9px 0}.msg b{color:#ff6b4a}
+#board8{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;max-width:400px;margin:12px auto;background:#2d2a26;padding:6px;border-radius:14px}
+#board8 div{aspect-ratio:1;border-radius:6px;background:#fff7ec}
+#tray{display:flex;gap:12px;justify-content:center;margin:14px 0;min-height:76px}
+.piece{display:grid;gap:3px;cursor:pointer;border:3px solid transparent;border-radius:12px;padding:8px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.07);touch-action:none}
+.piece.sel{border-color:#ff6b4a;transform:scale(1.08);box-shadow:0 4px 14px rgba(255,107,74,.4)}
+.piece div{width:22px;height:22px;border-radius:5px}
+#dragPrev{position:fixed;pointer-events:none;z-index:99;display:none;opacity:.85}
+#dragPrev div{border-radius:5px}
+table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:9px 6px;border-bottom:1px solid #f3ead9;text-align:left}
+.up{color:#d92b2b;font-weight:700}.down{color:#1a66cc;font-weight:700}
 </style>
 </head>
 <body>
-<header><span>🏠 우리 가족</span><button id="logoutBtn" style="display:none" onclick="logout()">로그아웃</button></header>
+<header><div><div class="t">🏠 우리 가족</div><div class="s">사진 · 일정 · 게임 · 채팅 · 자산, 한 곳에</div></div><button id="logoutBtn" style="display:none" onclick="logout()">로그아웃</button></header>
 
 <div id="login">
-  <h2>가족 로그인</h2>
-  <p style="color:#888;font-size:14px">가족 공용 아이디로 로그인하세요</p>
-  <input id="email" value="family@ourhome.site" placeholder="아이디(이메일)">
-  <input id="pw" type="password" placeholder="비밀번호">
-  <button onclick="doLogin()">로그인</button>
-  <p id="loginMsg" style="color:#e74c3c;font-size:13px"></p>
+  <div class="hero">🏠</div>
+  <h2 style="margin:8px 0 4px">우리 가족 사이트</h2>
+  <p style="color:var(--muted);font-size:14px;margin:0 0 14px">가족 공용 아이디로 로그인하세요</p>
+  <div class="card">
+    <input id="email" value="family@ourhome.site" placeholder="아이디(이메일)">
+    <input id="pw" type="password" placeholder="비밀번호">
+    <button onclick="doLogin()">로그인</button>
+    <p id="loginMsg" style="color:#e74c3c;font-size:13px"></p>
+  </div>
 </div>
 
 <div id="app" style="display:none">
 <nav>
-  <button class="on" onclick="showTab('photos',this)">📷 사진</button>
+  <button class="on" onclick="showTab('photos',this)">🖼️ 갤러리</button>
   <button onclick="showTab('board',this)">📋 게시판</button>
   <button onclick="showTab('cal',this)">📅 일정</button>
   <button onclick="showTab('game',this)">🎮 게임</button>
   <button onclick="showTab('chat',this)">💬 채팅</button>
-  <button onclick="showTab('port',this)">🪙 포트폴리오</button>
+  <button onclick="showTab('stocks',this)">📈 주식</button>
+  <button onclick="showTab('port',this)">🪙 코인</button>
 </nav>
 <main>
   <section id="photos" class="tab on">
-    <div class="card"><input type="file" id="photoFile" accept="image/*"><input id="photoName" placeholder="이름 (예: 엄마)"><button class="act" onclick="uploadPhoto()">사진 올리기</button><p style="font-size:12px;color:#999">올린 사진은 전 가족이 볼 수 있어요.</p></div>
+    <h3 class="sec">🖼️ 갤러리</h3>
+    <div class="card"><input type="file" id="photoFile" accept="image/*"><input id="photoName" placeholder="이름 (예: 엄마)"><button class="act" onclick="uploadPhoto()">사진 올리기</button><p style="font-size:12px;color:var(--muted)">올린 사진은 전 가족이 볼 수 있어요.</p></div>
     <div class="grid" id="photoGrid"></div>
   </section>
 
   <section id="board" class="tab">
+    <h3 class="sec">📋 게시판</h3>
     <div class="card"><input id="postTitle" placeholder="제목"><textarea id="postBody" rows="3" placeholder="내용"></textarea><input id="postName" placeholder="이름"><button class="act" onclick="addPost()">글 쓰기</button></div>
     <div id="postList"></div>
   </section>
 
   <section id="cal" class="tab">
-    <div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><button class="mini" onclick="moveMonth(-1)">◀</button><b id="calTitle"></b><button class="mini" onclick="moveMonth(1)">▶</button></div><div id="calgrid"></div></div>
+    <h3 class="sec">📅 일정</h3>
+    <div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><button class="mini" onclick="moveMonth(-1)">◀</button><b id="calTitle"></b><button class="mini" onclick="moveMonth(1)">▶</button></div><div id="calgrid" style="margin-top:8px"></div></div>
     <div class="card"><input type="date" id="evDate"><input id="evTitle" placeholder="일정 제목 (예: 엄마 생일)"><input id="evNote" placeholder="메모"><button class="act" onclick="addEvent()">일정 추가</button></div>
     <div id="evList"></div>
   </section>
 
   <section id="game" class="tab">
-    <div class="card" style="text-align:center"><h3 style="margin:4px">블록 퍼즐</h3><p>블록을 골라 빈 칸을 눌러 놓으세요. 가로·세로 한 줄이 차면 사라져요.</p><p>점수: <b id="score">0</b></p><div id="board8"></div><div id="tray"></div><button class="act" onclick="newGame()">새 게임</button><p id="gameMsg" style="color:#e74c3c"></p></div>
+    <h3 class="sec">🎮 블록 퍼즐</h3>
+    <div class="card" style="text-align:center">
+      <p style="margin:4px;color:var(--muted);font-size:14px">블록을 <b style="color:var(--ink)">끌어서</b> 보드에 놓거나, 블록을 누른 뒤 빈 칸을 누르세요.<br>가로·세로 한 줄이 차면 사라져요.</p>
+      <p>점수: <b id="score" style="font-size:20px">0</b></p>
+      <div id="board8"></div>
+      <div id="tray"></div>
+      <p id="gameHint" style="font-weight:700;color:#ff6b4a">① 아래 블록을 선택하세요</p>
+      <button class="act" onclick="newGame()">새 게임</button>
+      <p id="gameMsg" style="color:#e74c3c;font-weight:700"></p>
+    </div>
   </section>
 
   <section id="chat" class="tab">
+    <h3 class="sec">💬 채팅</h3>
     <div id="chatbox"></div>
     <div style="display:flex;gap:8px"><input id="chatName" placeholder="이름" style="max-width:90px"><input id="chatText" placeholder="메시지" style="flex:1"><button class="act" onclick="sendChat()">전송</button></div>
   </section>
 
+  <section id="stocks" class="tab">
+    <h3 class="sec">📈 주식</h3>
+    <div class="card"><input id="stName" placeholder="종목명 (예: 삼성전자)"><input id="stQty" type="number" step="any" placeholder="보유 수량"><input id="stAvg" type="number" step="any" placeholder="평단가 (원)"><input id="stCur" type="number" step="any" placeholder="현재가 (원) — 직접 입력"><input id="stNote" placeholder="메모"><button class="act" onclick="addStock()">추가</button><p style="font-size:12px;color:var(--muted)">주식 시세는 무료 공개 API가 불안정해서 직접 입력하는 방식이에요.</p></div>
+    <div class="card"><table><thead><tr><th>종목</th><th>수량</th><th>수익률</th><th>평가액</th><th></th></tr></thead><tbody id="stockRows"></tbody></table></div>
+  </section>
+
   <section id="port" class="tab">
+    <h3 class="sec">🪙 코인</h3>
     <div class="card"><input id="coinSym" placeholder="코인 (예: BTC, ETH, SOL)"><input id="coinAmt" type="number" step="any" placeholder="보유량"><input id="coinNote" placeholder="메모"><button class="act" onclick="addCoin()">추가</button><button class="mini" onclick="refreshPrices()">시세 새로고침</button></div>
-    <div class="card"><table><thead><tr><th>코인</th><th>보유량</th><th>시세(KRW)</th><th>평가액</th><th></th></tr></thead><tbody id="portRows"></tbody></table><p style="font-size:12px;color:#999">시세는 코인게코 공개 시세 기준이며, 조회 실패 시 표시되지 않습니다.</p></div>
+    <div class="card"><table><thead><tr><th>코인</th><th>보유량</th><th>시세(KRW)</th><th>평가액</th><th></th></tr></thead><tbody id="portRows"></tbody></table><p style="font-size:12px;color:var(--muted)">시세는 코인게코 공개 시세 기준이며, 조회 실패 시 표시되지 않습니다.</p></div>
   </section>
 </main>
 </div>
+<div id="dragPrev"></div>
 <script>
 firebase.initializeApp({apiKey:"AIzaSyBKxVL_tkaFos6CMKEUX7LUWuGcJOC5-yU",authDomain:"family-hub-7681f.firebaseapp.com",projectId:"family-hub-7681f",storageBucket:"family-hub-7681f.firebasestorage.app",messagingSenderId:"407038030549",appId:"1:407038030549:web:7b548db3755940b2bd685c"});
 const auth=firebase.auth(), db=firebase.firestore();
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const myName=()=>localStorage.getItem("famName")||"가족";
-function showTab(id,btn){document.querySelectorAll(".tab").forEach(t=>t.classList.remove("on"));document.getElementById(id).classList.add("on");document.querySelectorAll("nav button").forEach(b=>b.classList.remove("on"));btn.classList.add("on");if(id==="chat")loadChat();if(id==="port")loadPort();}
+function showTab(id,btn){document.querySelectorAll(".tab").forEach(t=>t.classList.remove("on"));document.getElementById(id).classList.add("on");document.querySelectorAll("nav button").forEach(b=>b.classList.remove("on"));btn.classList.add("on");if(id==="chat")loadChat();if(id==="port")loadPort();if(id==="stocks")loadStocks();}
 async function doLogin(){const e=document.getElementById("email").value.trim(),p=document.getElementById("pw").value;try{await auth.signInWithEmailAndPassword(e,p);}catch(err){document.getElementById("loginMsg").textContent="로그인 실패: 아이디/비밀번호를 확인하세요.";}}
 function logout(){auth.signOut();}
-auth.onAuthStateChanged(u=>{document.getElementById("login").style.display=u?"none":"block";document.getElementById("app").style.display=u?"block":"none";document.getElementById("logoutBtn").style.display=u?"inline-block":"none";if(u){loadPhotos();loadPosts();renderCal();loadPort();loadChat();}});
+auth.onAuthStateChanged(u=>{document.getElementById("login").style.display=u?"none":"block";document.getElementById("app").style.display=u?"block":"none";document.getElementById("logoutBtn").style.display=u?"inline-block":"none";if(u){loadPhotos();loadPosts();renderCal();loadPort();loadStocks();loadChat();}});
+async function delDoc(col,id){if(!confirm("삭제할까요?"))return;await db.collection(col).doc(id).delete();}
 
-// 사진
+// 갤러리
 function compress(file){return new Promise(res=>{const img=new Image();img.onload=()=>{const m=1000,s=Math.min(1,m/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=img.width*s;c.height=img.height*s;c.getContext("2d").drawImage(img,0,0,c.width,c.height);res(c.toDataURL("image/jpeg",0.75));};img.src=URL.createObjectURL(file);});}
 async function uploadPhoto(){const f=document.getElementById("photoFile").files[0];if(!f)return alert("사진을 선택하세요.");const data=await compress(f);const name=document.getElementById("photoName").value.trim()||myName();localStorage.setItem("famName",name);await db.collection("photos").add({author:name,data,createdAt:firebase.firestore.FieldValue.serverTimestamp()});document.getElementById("photoFile").value="";loadPhotos();}
-async function loadPhotos(){const q=await db.collection("photos").orderBy("createdAt","desc").limit(60).get();document.getElementById("photoGrid").innerHTML=q.docs.map(d=>`<div class="card" style="padding:6px"><img src="${d.data().data}" style="width:100%;border-radius:8px"><div style="font-size:12px;color:#999">${esc(d.data().author)} <button class="mini" onclick="delDoc('photos','${d.id}');loadPhotos()">삭제</button></div></div>`).join("")||"<p>아직 사진이 없어요.</p>";}
-async function delDoc(col,id){if(!confirm("삭제할까요?"))return;await db.collection(col).doc(id).delete();}
+async function loadPhotos(){const q=await db.collection("photos").orderBy("createdAt","desc").limit(60).get();document.getElementById("photoGrid").innerHTML=q.docs.map(d=>`<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <button class="mini" onclick="delDoc('photos','${d.id}');loadPhotos()">삭제</button></div></div>`).join("")||"<p>아직 사진이 없어요.</p>";}
 
 // 게시판
 async function addPost(){const t=document.getElementById("postTitle").value.trim(),b=document.getElementById("postBody").value.trim();if(!t||!b)return alert("제목과 내용을 입력하세요.");const n=document.getElementById("postName").value.trim()||myName();localStorage.setItem("famName",n);await db.collection("posts").add({author:n,title:t,body:b,createdAt:firebase.firestore.FieldValue.serverTimestamp()});document.getElementById("postTitle").value="";document.getElementById("postBody").value="";loadPosts();}
@@ -124,24 +158,36 @@ async function loadChat(){const q=await db.collection("messages").orderBy("creat
 async function sendChat(){const t=document.getElementById("chatText").value.trim();if(!t)return;const n=document.getElementById("chatName").value.trim()||myName();localStorage.setItem("famName",n);await db.collection("messages").add({author:n,body:t,createdAt:firebase.firestore.FieldValue.serverTimestamp()});document.getElementById("chatText").value="";loadChat();}
 setInterval(()=>{if(document.getElementById("chat").classList.contains("on"))loadChat();},4000);
 
-// 포트폴리오
+// 주식
+async function addStock(){const n=document.getElementById("stName").value.trim(),q=parseFloat(document.getElementById("stQty").value),a=parseFloat(document.getElementById("stAvg").value),c=parseFloat(document.getElementById("stCur").value);if(!n||isNaN(q)||isNaN(a)||isNaN(c))return alert("종목명·수량·평단가·현재가를 모두 입력하세요.");await db.collection("stocks").add({name:n,qty:q,avg:a,cur:c,note:document.getElementById("stNote").value.trim(),createdAt:firebase.firestore.FieldValue.serverTimestamp()});["stName","stQty","stAvg","stCur","stNote"].forEach(id=>document.getElementById(id).value="");loadStocks();}
+async function loadStocks(){const q=await db.collection("stocks").orderBy("createdAt","desc").get();document.getElementById("stockRows").innerHTML=q.docs.map(d=>{const v=d.data(),ret=((v.cur-v.avg)/v.avg*100),cls=ret>=0?"up":"down";return `<tr><td>${esc(v.name)}</td><td>${v.qty}</td><td class="${cls}">${ret>=0?"▲":"▼"} ${Math.abs(ret).toFixed(1)}%</td><td>${(v.qty*v.cur).toLocaleString("ko-KR")}원</td><td><button class="mini" onclick="delDoc('stocks','${d.id}');loadStocks()">삭제</button></td></tr>`;}).join("")||"<tr><td colspan='5'>보유 주식을 추가하세요.</td></tr>";}
+
+// 코인
 const CGMAP={BTC:"bitcoin",ETH:"ethereum",SOL:"solana",XRP:"ripple",DOGE:"dogecoin",ADA:"cardano",TRX:"tron",AVAX:"avalanche",LINK:"chainlink",MATIC:"matic-network",LTC:"litecoin",ATOM:"cosmos",NEAR:"near",APT:"aptos",SUI:"sui",PEPE:"pepe",SHIB:"shiba-inu",TON:"toncoin",XLM:"stellar",HBAR:"hedera-hashgraph"};
 let prices={};
 async function refreshPrices(){try{const ids=Object.values(CGMAP).join(",");const r=await fetch("https://api.coingecko.com/api/v3/simple/price?ids="+ids+"&vs_currencies=krw");prices=await r.json();}catch(e){}loadPort();}
 async function addCoin(){const s=document.getElementById("coinSym").value.trim().toUpperCase(),a=parseFloat(document.getElementById("coinAmt").value);if(!s||isNaN(a))return alert("코인과 보유량을 입력하세요.");await db.collection("portfolio").add({coin:s,amount:a,note:document.getElementById("coinNote").value.trim(),createdAt:firebase.firestore.FieldValue.serverTimestamp()});document.getElementById("coinSym").value="";document.getElementById("coinAmt").value="";document.getElementById("coinNote").value="";loadPort();}
 async function loadPort(){const q=await db.collection("portfolio").orderBy("createdAt","desc").get();document.getElementById("portRows").innerHTML=q.docs.map(d=>{const v=d.data(),id=CGMAP[v.coin],p=id&&prices[id]?prices[id].krw:null;return `<tr><td>${esc(v.coin)}</td><td>${v.amount}</td><td>${p?p.toLocaleString("ko-KR")+"원":"-"}</td><td>${p?(v.amount*p).toLocaleString("ko-KR")+"원":"-"}</td><td><button class="mini" onclick="delDoc('portfolio','${d.id}');loadPort()">삭제</button></td></tr>`;}).join("")||"<tr><td colspan='5'>보유 코인을 추가하세요.</td></tr>";}
 
-// 게임 (8x8 블록 퍼즐)
+// 게임 (8x8 블록 퍼즐: 탭 선택 + 드래그 모두 지원)
 const COLORS=["#ff6b6b","#ffa94d","#ffd43b","#69db7c","#4dabf7","#9775fa","#f783ac"];
 const SHAPES=[[[1]],[[1,1]],[[1],[1]],[[1,1,1]],[[1],[1],[1]],[[1,1],[1,1]],[[1,1,0],[0,1,1]],[[0,1,1],[1,1,0]],[[1,0],[1,1]],[[0,1],[1,1]],[[1,1],[1,0]],[[1,1],[0,1]],[[1,1,1,1]],[[1],[1],[1],[1]],[[1,1,1],[0,1,0]]];
-let grid, tray, selPiece=-1, score=0;
-function newGame(){grid=Array.from({length:8},()=>Array(8).fill(0));score=0;document.getElementById("score").textContent=0;document.getElementById("gameMsg").textContent="";deal();drawBoard();}
+let grid, tray, selPiece=-1, score=0, dragIdx=-1;
+const boardEl=document.getElementById("board8"), trayEl=document.getElementById("tray"), hintEl=document.getElementById("gameHint"), prevEl=document.getElementById("dragPrev");
+function setHint(){hintEl.textContent=selPiece>=0?"선택됨! 빈 칸을 누르거나 끌어다 놓으세요":"① 아래 블록을 선택하세요";}
+function newGame(){grid=Array.from({length:8},()=>Array(8).fill(0));score=0;selPiece=-1;document.getElementById("score").textContent=0;document.getElementById("gameMsg").textContent="";deal();drawBoard();setHint();}
 function deal(){tray=[0,1,2].map(()=>({shape:SHAPES[Math.floor(Math.random()*SHAPES.length)],color:COLORS[Math.floor(Math.random()*COLORS.length)]}));drawTray();}
-function drawBoard(){document.getElementById("board8").innerHTML=grid.flatMap((row,y)=>row.map((v,x)=>`<div data-x="${x}" data-y="${y}" style="background:${v||"#f5efe4"}" onclick="placeAt(${x},${y})"></div>`)).join("");}
-function drawTray(){document.getElementById("tray").innerHTML=tray.map((p,i)=>p?`<div class="piece ${selPiece===i?"sel":""}" onclick="selPiece=${i};drawTray()">${p.shape.map(r=>`<div style="display:flex;gap:2px">${r.map(c=>`<div style="background:${c?p.color:"transparent"}"></div>`).join("")}</div>`).join("")}</div>`:"<div style='width:60px'></div>").join("");}
+function drawBoard(){boardEl.innerHTML=grid.flatMap((row,y)=>row.map((v,x)=>`<div data-x="${x}" data-y="${y}" style="background:${v||"#fff7ec"}"></div>`)).join("");}
+function pieceHTML(p){return p.shape.map(r=>`<div style="display:flex;gap:3px">${r.map(c=>`<div style="background:${c?p.color:"transparent"}"></div>`).join("")}</div>`).join("");}
+function drawTray(){trayEl.innerHTML=tray.map((p,i)=>p?`<div class="piece ${selPiece===i?"sel":""}" data-i="${i}">${pieceHTML(p)}</div>`:"<div style='width:70px'></div>").join("");}
 function canPlace(p,x0,y0){return p.shape.every((r,y)=>r.every((c,x)=>!c||(x0+x<8&&y0+y<8&&!grid[y0+y][x0+x])));}
 function fits(p){for(let y=0;y<8;y++)for(let x=0;x<8;x++)if(canPlace(p,x,y))return true;return false;}
-function placeAt(x,y){if(selPiece<0||!tray[selPiece])return;const p=tray[selPiece];if(!canPlace(p,x,y))return;p.shape.forEach((r,dy)=>r.forEach((c,dx)=>{if(c)grid[y+dy][x+dx]=p.color;}));score+=p.shape.flat().reduce((a,b)=>a+b,0)*10;tray[selPiece]=null;selPiece=-1;let lines=0;for(let i=0;i<8;i++){if(grid[i].every(v=>v)){grid[i]=Array(8).fill(0);lines++;}if(grid.every(r=>r[i])){grid.forEach(r=>r[i]=0);lines++;}}score+=lines*100;document.getElementById("score").textContent=score;if(tray.every(t=>!t))deal();else drawTray();drawBoard();if(tray.every(t=>!t||!fits(t))){document.getElementById("gameMsg").textContent="게임 오버! 점수 "+score+"점";}}
+function placeAt(x,y){if(selPiece<0||!tray[selPiece])return false;const p=tray[selPiece];if(!canPlace(p,x,y))return false;p.shape.forEach((r,dy)=>r.forEach((c,dx)=>{if(c)grid[y+dy][x+dx]=p.color;}));score+=p.shape.flat().reduce((a,b)=>a+b,0)*10;tray[selPiece]=null;selPiece=-1;let lines=0;for(let i=0;i<8;i++){if(grid[i].every(v=>v)){grid[i]=Array(8).fill(0);lines++;}if(grid.every(r=>r[i])){grid.forEach(r=>r[i]=0);lines++;}}score+=lines*100;document.getElementById("score").textContent=score;if(tray.every(t=>!t))deal();else drawTray();drawBoard();setHint();if(tray.every(t=>!t||!fits(t)))document.getElementById("gameMsg").textContent="게임 오버! 점수 "+score+"점";return true;}
+trayEl.addEventListener("pointerdown",e=>{const pc=e.target.closest(".piece");if(!pc)return;const i=+pc.dataset.i;if(!tray[i])return;selPiece=i;drawTray();setHint();dragIdx=i;prevEl.innerHTML=pieceHTML(tray[i]);prevEl.style.display="block";movePrev(e);});
+function movePrev(e){prevEl.style.left=(e.clientX-30)+"px";prevEl.style.top=(e.clientY-30)+"px";}
+document.addEventListener("pointermove",e=>{if(dragIdx>=0)movePrev(e);});
+document.addEventListener("pointerup",e=>{if(dragIdx<0)return;const pv=prevEl;pv.style.display="none";const el=document.elementFromPoint(e.clientX,e.clientY);const cell=el&&el.closest?el.closest("#board8 div[data-x]"):null;if(cell)placeAt(+cell.dataset.x,+cell.dataset.y);dragIdx=-1;if(selPiece>=0&&tray[selPiece]){/* keep selection for tap-tap */}setHint();});
+boardEl.addEventListener("pointerup",e=>{const cell=e.target.closest("div[data-x]");if(cell)placeAt(+cell.dataset.x,+cell.dataset.y);});
 newGame();
 </script>
 </body>
