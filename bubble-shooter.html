@@ -210,7 +210,10 @@ function stopBgm(){
   if(bgmStepTimer){clearInterval(bgmStepTimer);bgmStepTimer=null;}
   if(bgmGain&&actx)bgmGain.gain.setTargetAtTime(0,actx.currentTime,0.03);
 }
-function toggleBgm(){bgmOn=!bgmOn;document.getElementById('bgmBtn').textContent=bgmOn?'🎶':'🎵';if(bgmOn)startBgm();else stopBgm();}
+function toggleBgm(){bgmOn=!bgmOn;document.getElementById('bgmBtn').textContent=bgmOn?'🎶':'🎵';try{localStorage.setItem('bgm',bgmOn?'1':'0');}catch(e){}if(bgmOn)startBgm();else stopBgm();}
+function autoBgmOnce(e){if(e.target&&e.target.closest&&e.target.closest('button'))return;let pref='1';try{pref=localStorage.getItem('bgm')||'1';}catch(err){}if(pref!=='0'&&!bgmOn){bgmOn=true;startBgm();document.getElementById('bgmBtn').textContent='🎶';}document.removeEventListener('pointerdown',autoBgmOnce);}
+document.addEventListener('pointerdown',autoBgmOnce);
+document.addEventListener('visibilitychange',()=>{if(!actx)return;if(document.hidden){if(actx.state==='running')actx.suspend();}else if(bgmOn&&actx.state==='suspended'){actx.resume();}});
 let last=performance.now();
 function loop(now){const dt=Math.min(0.05,(now-last)/1000);last=now;update(dt);
   let d=aimTarget-aim;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;aim+=d*(1-Math.exp(-dt*7));
