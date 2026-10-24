@@ -16,7 +16,7 @@ p{color:#bbb;font-size:13px;margin:8px 0 20px}
 </head>
 <body>
 <h1>🫧 사진 버블 슈터</h1>
-<div id="top"><span id="score">점수 0</span><button onclick="newGame()">새 게임</button><button id="sndBtn" onclick="toggleSound()">🔊</button></div>
+<div id="top"><span id="score">점수 0</span><button onclick="newGame()">새 게임</button><button id="sndBtn" onclick="toggleSound()">🔊</button><button id="bgmBtn" onclick="toggleBgm()">🎵</button></div>
 <canvas id="cv" width="480" height="700"></canvas>
 <p>방향을 정하고 톡 쏘세요! 같은 사진 3개 이상 모이면 팡 터져요.<br>버블이 빨간 선까지 내려오면 게임 오버!</p>
 <script>
@@ -166,6 +166,21 @@ cv.addEventListener('touchstart',e=>{e.preventDefault();setAim(e.touches[0].clie
 cv.addEventListener('touchmove',e=>{e.preventDefault();setAim(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
 cv.addEventListener('touchend',e=>{e.preventDefault();shoot();},{passive:false});
 function toggleSound(){soundOn=!soundOn;document.getElementById('sndBtn').textContent=soundOn?'🔊':'🔇';}
+let bgmOn=false,bgmPadTimer=null,bgmPluckTimer=null;
+function bgmNote(freq,t,dur,vol){const o=actx.createOscillator(),g=actx.createGain();o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.9);g.gain.setValueAtTime(vol,t+Math.max(0.9,dur-1.2));g.gain.linearRampToValueAtTime(0,t+dur);o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+dur+0.1);}
+function startBgm(){
+  if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();
+  if(actx.state==='suspended')actx.resume();
+  const chords=[[261.63,329.63,392.00],[220.00,261.63,329.63],[174.61,220.00,261.63],[196.00,246.94,293.66]];
+  const penta=[523.25,587.33,659.25,783.99,880.00,1046.50];
+  let ci=0;
+  const pad=()=>{const t=actx.currentTime;chords[ci%chords.length].forEach(f=>bgmNote(f,t,9,0.035));ci++;};
+  pad();bgmPadTimer=setInterval(pad,8000);
+  bgmPluckTimer=setInterval(()=>{if(!bgmOn)return;const t=actx.currentTime;bgmNote(penta[Math.floor(Math.random()*penta.length)],t,3,0.03);},2600);
+}
+function stopBgm(){clearInterval(bgmPadTimer);clearInterval(bgmPluckTimer);bgmPadTimer=bgmPluckTimer=null;}
+function toggleBgm(){bgmOn=!bgmOn;document.getElementById('bgmBtn').textContent=bgmOn?'🎶':'🎵';if(bgmOn)startBgm();else stopBgm();}
+
 let last=performance.now();
 function loop(now){const dt=Math.min(0.05,(now-last)/1000);last=now;update(dt);draw();requestAnimationFrame(loop);}
 let loaded=0;
