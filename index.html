@@ -32,6 +32,26 @@ function toggleBgm(){
   try{localStorage.setItem('bgm',bgmOn?'1':'0');}catch(e){}
   if(bgmOn)startBgm();else stopBgm();
 }
+
+let curPf='stock';
+function setPf(k,btn){curPf=k;document.querySelectorAll('#pfTabs .subtab').forEach(b=>b.classList.remove('on'));btn.classList.add('on');loadPf();}
+async function loadPf(){
+  const q=await db.collection('pf').where('kind','==',curPf).get();
+  const docs=q.docs.sort((a,b)=>(b.data().createdAt||0)-(a.data().createdAt||0));
+  let sum=0;docs.forEach(d=>sum+=parseFloat(d.data().pct)||0);
+  const box=document.getElementById('pfList');
+  box.innerHTML=docs.map(d=>`<div class="card" style="display:flex;gap:10px;align-items:center"><div style="flex:1"><b>${esc(d.data().name)}</b></div><div style="font-weight:800">${d.data().pct}%</div><button class="mini" onclick="delDoc('pf','${d.id}');loadPf()">삭제</button></div>`).join('')||'<p>아직 보유 목록이 없어요.</p>';
+  box.innerHTML+=`<p style="color:var(--muted);font-size:13px">합계 ${Math.round(sum*10)/10}%</p>`;
+}
+async function addPf(){
+  const name=document.getElementById('pfName').value.trim();
+  const pct=parseFloat(document.getElementById('pfPct').value);
+  if(!name)return alert('이름을 입력하세요.');
+  if(isNaN(pct))return alert('퍼센테지를 입력하세요.');
+  await db.collection('pf').add({kind:curPf,name,pct,createdAt:Date.now()});
+  document.getElementById('pfName').value='';document.getElementById('pfPct').value='';
+  loadPf();
+}
 </script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -89,6 +109,7 @@ h3.sec{position:relative;padding-bottom:8px}
 h3.sec::after{content:"";position:absolute;left:4px;bottom:0;width:46px;height:4px;border-radius:4px;background:linear-gradient(90deg,#ff6b4a,#ffb347)}
 .albums{display:flex;gap:10px;margin:2px 0 14px}.album{flex:1;padding:0;border:3px solid transparent;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.08)}.album img{width:100%;aspect-ratio:1;object-fit:cover;display:block}.album.on{border-color:#ff6b4a;box-shadow:0 0 0 2px #ffb59e,0 2px 8px rgba(0,0,0,.12)}
 #bgmBtn{position:fixed;right:16px;bottom:16px;z-index:50;width:52px;height:52px;border-radius:50%;border:0;background:rgba(255,255,255,.92);font-size:24px;box-shadow:0 2px 10px rgba(0,0,0,.18);cursor:pointer}#bgmBtn.on{background:#ff6b4a}
+.subtabs{display:flex;gap:8px;margin:2px 0 14px}.subtab{flex:1;padding:10px;border-radius:999px;border:0;background:#fff;font-weight:700;font-size:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)}.subtab.on{background:linear-gradient(135deg,#ff6b4a,#ff9e57);color:#fff}
 </style>
 </head>
 <body>
@@ -119,8 +140,7 @@ h3.sec::after{content:"";position:absolute;left:4px;bottom:0;width:46px;height:4
   <button onclick="showTab('cal',this)">📅 일정</button>
   <button onclick="showTab('game',this)">🎮 게임</button>
   <button onclick="showTab('chat',this)">💬 채팅</button>
-  <button onclick="showTab('stocks',this)">📈 주식</button>
-  <button onclick="showTab('port',this)">🪙 코인</button>
+  <button onclick="showTab('pf',this)">💼 포트폴리오</button>
 </nav>
 <main>
   <section id="photos" class="tab on">
@@ -169,16 +189,14 @@ h3.sec::after{content:"";position:absolute;left:4px;bottom:0;width:46px;height:4
     <div style="display:flex;gap:8px"><input id="chatName" placeholder="이름" style="max-width:90px"><input id="chatText" placeholder="메시지" style="flex:1"><button class="act" onclick="sendChat()">전송</button></div>
   </section>
 
-  <section id="stocks" class="tab">
-    <h3 class="sec">📈 주식</h3>
-    <div class="card"><input id="stName" placeholder="종목명 (예: 삼성전자)"><input id="stQty" type="number" step="any" placeholder="보유 수량"><input id="stAvg" type="number" step="any" placeholder="평단가 (원)"><input id="stCur" type="number" step="any" placeholder="현재가 (원) — 직접 입력"><input id="stNote" placeholder="메모"><button class="act" onclick="addStock()">추가</button><p style="font-size:12px;color:var(--muted)">주식 시세는 무료 공개 API가 불안정해서 직접 입력하는 방식이에요.</p></div>
-    <div class="card"><table><thead><tr><th>종목</th><th>수량</th><th>수익률</th><th>평가액</th><th></th></tr></thead><tbody id="stockRows"></tbody></table></div>
-  </section>
-
-  <section id="port" class="tab">
-    <h3 class="sec">🪙 코인</h3>
-    <div class="card"><input id="coinSym" placeholder="코인 (예: BTC, ETH, SOL)"><input id="coinAmt" type="number" step="any" placeholder="보유량"><input id="coinNote" placeholder="메모"><button class="act" onclick="addCoin()">추가</button><button class="mini" onclick="refreshPrices()">시세 새로고침</button></div>
-    <div class="card"><table><thead><tr><th>코인</th><th>보유량</th><th>시세(KRW)</th><th>평가액</th><th></th></tr></thead><tbody id="portRows"></tbody></table><p style="font-size:12px;color:var(--muted)">시세는 코인게코 공개 시세 기준이며, 조회 실패 시 표시되지 않습니다.</p></div>
+  <section id="pf" class="tab">
+    <h3 class="sec">💼 포트폴리오</h3>
+    <div class="subtabs" id="pfTabs">
+      <button class="subtab on" onclick="setPf('stock',this)">주식</button>
+      <button class="subtab" onclick="setPf('coin',this)">코인</button>
+    </div>
+    <div id="pfList"></div>
+    <div class="card"><input id="pfName" placeholder="이름 (예: 삼성전자 / BTC)"><input id="pfPct" type="number" min="0" max="100" step="0.1" placeholder="보유 퍼센트(%)"><button class="act" onclick="addPf()">추가</button></div>
   </section>
 </main>
 </div>
@@ -188,10 +206,10 @@ firebase.initializeApp({apiKey:"AIzaSyBKxVL_tkaFos6CMKEUX7LUWuGcJOC5-yU",authDom
 const auth=firebase.auth(), db=firebase.firestore();
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const myName=()=>localStorage.getItem("famName")||"가족";
-function showTab(id,btn){document.querySelectorAll(".tab").forEach(t=>t.classList.remove("on"));document.getElementById(id).classList.add("on");document.querySelectorAll("nav button").forEach(b=>b.classList.remove("on"));btn.classList.add("on");if(id==="photos")renderGallery();if(id==="chat")loadChat();if(id==="port")loadPort();if(id==="stocks")loadStocks();}
+function showTab(id,btn){document.querySelectorAll(".tab").forEach(t=>t.classList.remove("on"));document.getElementById(id).classList.add("on");document.querySelectorAll("nav button").forEach(b=>b.classList.remove("on"));btn.classList.add("on");if(id==="photos")renderGallery();if(id==="chat")loadChat();if(id==="pf")loadPf();}
 async function doLogin(){const e=document.getElementById("email").value.trim(),p=document.getElementById("pw").value;try{await auth.signInWithEmailAndPassword(e,p);}catch(err){document.getElementById("loginMsg").textContent="로그인 실패: 아이디/비밀번호를 확인하세요.";}}
 function logout(){auth.signOut();}
-auth.onAuthStateChanged(u=>{document.getElementById("login").style.display=u?"none":"block";document.getElementById("app").style.display=u?"block":"none";document.getElementById("logoutBtn").style.display=u?"inline-block":"none";if(u){renderGallery();loadPosts();renderCal();loadPort();loadStocks();loadChat();}});
+auth.onAuthStateChanged(u=>{document.getElementById("login").style.display=u?"none":"block";document.getElementById("app").style.display=u?"block":"none";document.getElementById("logoutBtn").style.display=u?"inline-block":"none";if(u){renderGallery();loadPosts();renderCal();loadChat();}});
 async function delDoc(col,id){if(!confirm("삭제할까요?"))return;await db.collection(col).doc(id).delete();}
 
 // 갤러리
@@ -292,15 +310,8 @@ async function sendChat(){const t=document.getElementById("chatText").value.trim
 setInterval(()=>{if(document.getElementById("chat").classList.contains("on"))loadChat();},4000);
 
 // 주식
-async function addStock(){const n=document.getElementById("stName").value.trim(),q=parseFloat(document.getElementById("stQty").value),a=parseFloat(document.getElementById("stAvg").value),c=parseFloat(document.getElementById("stCur").value);if(!n||isNaN(q)||isNaN(a)||isNaN(c))return alert("종목명·수량·평단가·현재가를 모두 입력하세요.");await db.collection("stocks").add({name:n,qty:q,avg:a,cur:c,note:document.getElementById("stNote").value.trim(),createdAt:firebase.firestore.FieldValue.serverTimestamp()});["stName","stQty","stAvg","stCur","stNote"].forEach(id=>document.getElementById(id).value="");loadStocks();}
-async function loadStocks(){const q=await db.collection("stocks").orderBy("createdAt","desc").get();document.getElementById("stockRows").innerHTML=q.docs.map(d=>{const v=d.data(),ret=((v.cur-v.avg)/v.avg*100),cls=ret>=0?"up":"down";return `<tr><td>${esc(v.name)}</td><td>${v.qty}</td><td class="${cls}">${ret>=0?"▲":"▼"} ${Math.abs(ret).toFixed(1)}%</td><td>${(v.qty*v.cur).toLocaleString("ko-KR")}원</td><td><button class="mini" onclick="delDoc('stocks','${d.id}');loadStocks()">삭제</button></td></tr>`;}).join("")||"<tr><td colspan='5'>보유 주식을 추가하세요.</td></tr>";}
 
 // 코인
-const CGMAP={BTC:"bitcoin",ETH:"ethereum",SOL:"solana",XRP:"ripple",DOGE:"dogecoin",ADA:"cardano",TRX:"tron",AVAX:"avalanche",LINK:"chainlink",MATIC:"matic-network",LTC:"litecoin",ATOM:"cosmos",NEAR:"near",APT:"aptos",SUI:"sui",PEPE:"pepe",SHIB:"shiba-inu",TON:"toncoin",XLM:"stellar",HBAR:"hedera-hashgraph"};
-let prices={};
-async function refreshPrices(){try{const ids=Object.values(CGMAP).join(",");const r=await fetch("https://api.coingecko.com/api/v3/simple/price?ids="+ids+"&vs_currencies=krw");prices=await r.json();}catch(e){}loadPort();}
-async function addCoin(){const s=document.getElementById("coinSym").value.trim().toUpperCase(),a=parseFloat(document.getElementById("coinAmt").value);if(!s||isNaN(a))return alert("코인과 보유량을 입력하세요.");await db.collection("portfolio").add({coin:s,amount:a,note:document.getElementById("coinNote").value.trim(),createdAt:firebase.firestore.FieldValue.serverTimestamp()});document.getElementById("coinSym").value="";document.getElementById("coinAmt").value="";document.getElementById("coinNote").value="";loadPort();}
-async function loadPort(){const q=await db.collection("portfolio").orderBy("createdAt","desc").get();document.getElementById("portRows").innerHTML=q.docs.map(d=>{const v=d.data(),id=CGMAP[v.coin],p=id&&prices[id]?prices[id].krw:null;return `<tr><td>${esc(v.coin)}</td><td>${v.amount}</td><td>${p?p.toLocaleString("ko-KR")+"원":"-"}</td><td>${p?(v.amount*p).toLocaleString("ko-KR")+"원":"-"}</td><td><button class="mini" onclick="delDoc('portfolio','${d.id}');loadPort()">삭제</button></td></tr>`;}).join("")||"<tr><td colspan='5'>보유 코인을 추가하세요.</td></tr>";}
 
 
 </script>
