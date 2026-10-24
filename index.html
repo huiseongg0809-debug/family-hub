@@ -5,7 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>우리 가족 사이트</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js">
+let bgmCtx=null,bgmOn=false,bgmPadTimer=null,bgmPluckTimer=null;
+function bgmNote(freq,t,dur,vol,type){
+  const o=bgmCtx.createOscillator(),g=bgmCtx.createGain();
+  o.type=type||'sine';o.frequency.value=freq;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.9);
+  g.gain.setValueAtTime(vol,t+Math.max(0.9,dur-1.2));g.gain.linearRampToValueAtTime(0,t+dur);
+  o.connect(g);g.connect(bgmCtx.destination);o.start(t);o.stop(t+dur+0.1);
+}
+function startBgm(){
+  if(!bgmCtx) bgmCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(bgmCtx.state==='suspended') bgmCtx.resume();
+  const chords=[[261.63,329.63,392.00],[220.00,261.63,329.63],[174.61,220.00,261.63],[196.00,246.94,293.66]];
+  const penta=[523.25,587.33,659.25,783.99,880.00,1046.50];
+  let ci=0;
+  const pad=()=>{const t=bgmCtx.currentTime;chords[ci%chords.length].forEach(f=>bgmNote(f,t,9,0.035));ci++;};
+  pad();bgmPadTimer=setInterval(pad,8000);
+  bgmPluckTimer=setInterval(()=>{if(!bgmOn)return;const t=bgmCtx.currentTime;bgmNote(penta[Math.floor(Math.random()*penta.length)],t,3,0.03);},2600);
+}
+function stopBgm(){clearInterval(bgmPadTimer);clearInterval(bgmPluckTimer);bgmPadTimer=bgmPluckTimer=null;}
+function toggleBgm(){
+  bgmOn=!bgmOn;
+  const b=document.getElementById('bgmBtn');
+  b.textContent=bgmOn?'🎶':'🎵';b.classList.toggle('on',bgmOn);
+  try{localStorage.setItem('bgm',bgmOn?'1':'0');}catch(e){}
+  if(bgmOn)startBgm();else stopBgm();
+}
+</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
@@ -61,6 +88,7 @@ body{background-color:#fff7ec;background-image:radial-gradient(600px 300px at 8%
 h3.sec{position:relative;padding-bottom:8px}
 h3.sec::after{content:"";position:absolute;left:4px;bottom:0;width:46px;height:4px;border-radius:4px;background:linear-gradient(90deg,#ff6b4a,#ffb347)}
 .albums{display:flex;gap:10px;margin:2px 0 14px}.album{flex:1;padding:0;border:3px solid transparent;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.08)}.album img{width:100%;aspect-ratio:1;object-fit:cover;display:block}.album.on{border-color:#ff6b4a;box-shadow:0 0 0 2px #ffb59e,0 2px 8px rgba(0,0,0,.12)}
+#bgmBtn{position:fixed;right:16px;bottom:16px;z-index:50;width:52px;height:52px;border-radius:50%;border:0;background:rgba(255,255,255,.92);font-size:24px;box-shadow:0 2px 10px rgba(0,0,0,.18);cursor:pointer}#bgmBtn.on{background:#ff6b4a}
 </style>
 </head>
 <body>
@@ -124,6 +152,14 @@ h3.sec::after{content:"";position:absolute;left:4px;bottom:0;width:46px;height:4
         <p style="color:var(--muted);font-size:14px;margin:4px 0">가족 사진으로 만든 오리지널 게임</p>
       </div>
       <a href="photo-block-puzzle.html" target="_blank" rel="noopener"><button class="act">열기</button></a>
+    </div>
+    <div class="card" style="display:flex;gap:14px;align-items:center">
+      <div style="font-size:44px">🫧</div>
+      <div style="flex:1">
+        <b style="font-size:17px">사진 버블 슈터</b>
+        <p style="color:var(--muted);font-size:14px;margin:4px 0">가족 사진 버블을 쏴서 같은 사진 3개 모으면 팡!</p>
+      </div>
+      <a href="bubble-shooter.html" target="_blank" rel="noopener"><button class="act">열기</button></a>
     </div>
   </section>
 
@@ -220,5 +256,6 @@ async function loadPort(){const q=await db.collection("portfolio").orderBy("crea
 
 
 </script>
+<button id="bgmBtn" onclick="toggleBgm()" title="배경음악">🎵</button>
 </body>
 </html>
