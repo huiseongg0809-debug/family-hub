@@ -229,7 +229,7 @@ h3.sec::after{content:"";position:absolute;left:4px;bottom:0;width:46px;height:4
   </section>
 </main>
 </div>
-<div style="text-align:center;color:#bbb;font-size:12px;padding:16px">사이트 버전 11</div>
+<div style="text-align:center;color:#bbb;font-size:12px;padding:16px">사이트 버전 12</div>
 <div id="dragPrev"></div>
 <script>
 firebase.initializeApp({apiKey:"AIzaSyBKxVL_tkaFos6CMKEUX7LUWuGcJOC5-yU",authDomain:"family-hub-7681f.firebaseapp.com",projectId:"family-hub-7681f",storageBucket:"family-hub-7681f.firebasestorage.app",messagingSenderId:"407038030549",appId:"1:407038030549:web:7b548db3755940b2bd685c"});
@@ -340,7 +340,7 @@ async function renderSpecial(){
   const pq=await db.collection('photos').limit(200).get();
   const specials=pq.docs.filter(d=>d.data().album==='특별관');
   const movedSeedsAll=(await seedPhotos()).filter(p=>p.album==='특별관');
-  let html=`<div class="card"><input id="eventName" placeholder="행사 이름 (예: 칠순잔치, 생일 파티)"><button class="act" onclick="createEvent()">행사 만들기</button><p style="font-size:12px;color:var(--muted)">칠순잔치, 팔순잔치, 생일 파티 같은 행사 이름을 만들어 사진을 모아보세요.</p></div>`;
+  let html=`<div class="card"><input id="eventName" placeholder="행사 이름 (예: 칠순잔치, 생일 파티)"><button class="act" onclick="eventBtnClick()">행사 만들기</button><p style="font-size:12px;color:var(--muted)">칠순잔치, 팔순잔치, 생일 파티 같은 행사 이름을 만들어 사진을 모아보세요.</p></div>`;
   if(!aq.docs.length)html+='<p>아직 만든 행사가 없어요. 위에서 행사 이름을 만들어보세요.</p>';
   aq.docs.forEach(doc=>{
     const name=doc.data().name;
@@ -364,6 +364,11 @@ async function createEvent(){
     await db.collection('eventAlbums').add({name,createdAt:Date.now(),author:'가족'});
     el.value='';toast('✅ 행사가 만들어졌어요!');renderGallery();
   }catch(err){alert('행사 만들기 실패: '+(err&&err.message?err.message:err));}
+}
+async function eventBtnClick(){
+  toast('⏳ 행사 만드는 중...');
+  try{await createEvent();}
+  catch(err){alert('버튼 오류: '+(err&&err.message?err.message:err));}
 }
 async function deleteEvent(name){
   if(!confirm('['+name+'] 행사와 안의 사진을 모두 삭제할까요?'))return;
