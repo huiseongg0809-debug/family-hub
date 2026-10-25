@@ -230,6 +230,7 @@ function showTab(id,btn){document.querySelectorAll(".tab").forEach(t=>t.classLis
 async function doLogin(){const idv=document.getElementById("email").value.trim(),e=idv.includes("@")?idv:(idv==="우리 가족"?"gajok@ourhome.site":idv),p=document.getElementById("pw").value;try{await auth.signInWithEmailAndPassword(e,p);try{if(localStorage.getItem('bgm')!=='0'){bgmOn=true;startBgm();const bb=document.getElementById('bgmBtn');if(bb){bb.textContent='🎶';bb.classList.add('on');}}}catch(e){}}catch(err){document.getElementById("loginMsg").textContent="로그인 실패: 아이디/비밀번호를 확인하세요.";}}
 function logout(){auth.signOut();}
 async function backupAll(){
+  if(!confirm('다운로드 하시겠습니까?'))return;
   try{
     const cols=['photos','posts','events','messages','portfolio','stocks','eventAlbums','pf'];
     const out={exportedAt:new Date().toISOString()};
