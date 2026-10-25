@@ -194,6 +194,14 @@ h3.sec::after{content:"";position:absolute;left:4px;bottom:0;width:46px;height:4
       <a href="photo-block-puzzle.html" target="_blank" rel="noopener"><button class="act">열기</button></a>
     </div>
     <div class="card" style="display:flex;gap:14px;align-items:center">
+      <div style="font-size:44px">🕵️</div>
+      <div style="flex:1">
+        <b style="font-size:17px">가족 마피아 게임</b>
+        <p style="color:var(--muted);font-size:14px;margin:4px 0">로그인한 가족끼리 실시간으로 즐기는 마피아 게임</p>
+      </div>
+      <a href="mafia.html" target="_blank" rel="noopener"><button class="act">열기</button></a>
+    </div>
+    <div class="card" style="display:flex;gap:14px;align-items:center">
       <div style="font-size:44px">🫧</div>
       <div style="flex:1">
         <b style="font-size:17px">사진 버블 슈터</b>
@@ -246,8 +254,8 @@ auth.onAuthStateChanged(u=>{document.getElementById("login").style.display=u?"no
 async function delDoc(col,id){if(!confirm("삭제할까요?"))return;await db.collection(col).doc(id).delete();}
 
 // 갤러리
-function compress(file){return new Promise(res=>{const img=new Image();img.onload=()=>{const m=1000,s=Math.min(1,m/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=img.width*s;c.height=img.height*s;c.getContext("2d").drawImage(img,0,0,c.width,c.height);res(c.toDataURL("image/jpeg",0.75));};img.src=URL.createObjectURL(file);});}
-async function uploadPhoto(fileId,nameId,extra){fileId=fileId||"photoFile";nameId=nameId||"photoName";const f=document.getElementById(fileId).files[0];if(!f)return alert("사진을 선택하세요.");const data=await compress(f);const name=document.getElementById(nameId).value.trim()||myName();localStorage.setItem("famName",name);await db.collection("photos").add(Object.assign({author:name,data,createdAt:firebase.firestore.FieldValue.serverTimestamp()},extra||{}));document.getElementById(fileId).value="";renderGallery();}
+function compress(file){return new Promise((res,rej)=>{const img=new Image();img.onerror=()=>rej(new Error("사진을 읽을 수 없어요. 다른 사진으로 시도하세요."));img.onload=()=>{const m=1000,s=Math.min(1,m/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=img.width*s;c.height=img.height*s;c.getContext("2d").drawImage(img,0,0,c.width,c.height);res(c.toDataURL("image/jpeg",0.75));};img.src=URL.createObjectURL(file);});}
+async function uploadPhoto(fileId,nameId,extra){fileId=fileId||"photoFile";nameId=nameId||"photoName";const f=document.getElementById(fileId).files[0];if(!f)return alert("사진을 선택하세요.");try{const data=await compress(f);const name=document.getElementById(nameId).value.trim()||myName();localStorage.setItem("famName",name);await db.collection("photos").add(Object.assign({author:name,data,createdAt:firebase.firestore.FieldValue.serverTimestamp()},extra||{}));document.getElementById(fileId).value="";renderGallery();}catch(err){alert("사진 올리기 실패: "+(err&&err.message?err.message:err));}}
 let curAlbum='단체 사진';
 function renderAlbums(){
   const box=document.getElementById('albumCards');
@@ -313,8 +321,8 @@ async function renderSpecial(){
 async function createEvent(){
   const el=document.getElementById('eventName');const name=(el.value||'').trim();
   if(!name){alert('행사 이름을 입력하세요.');return;}
-  await db.collection('eventAlbums').add({name,createdAt:Date.now(),author:'가족'});
-  el.value='';renderGallery();
+  try{await db.collection('eventAlbums').add({name,createdAt:Date.now(),author:'가족'});el.value='';renderGallery();}
+  catch(err){alert('행사 만들기 실패: '+(err&&err.message?err.message:err));}
 }
 async function deleteEvent(name){
   if(!confirm('['+name+'] 행사와 안의 사진을 모두 삭제할까요?'))return;
