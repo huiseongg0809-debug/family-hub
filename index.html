@@ -256,7 +256,7 @@ async function delDoc(col,id){if(!confirm("삭제할까요?"))return;await db.co
 
 // 갤러리
 function compress(file){return new Promise((res,rej)=>{const img=new Image();img.onerror=()=>rej(new Error("사진을 읽을 수 없어요. 다른 사진으로 시도하세요."));img.onload=()=>{const m=1000,s=Math.min(1,m/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=img.width*s;c.height=img.height*s;c.getContext("2d").drawImage(img,0,0,c.width,c.height);res(c.toDataURL("image/jpeg",0.75));};img.src=URL.createObjectURL(file);});}
-async function uploadPhoto(fileId,nameId,extra){fileId=fileId||"photoFile";nameId=nameId||"photoName";const f=document.getElementById(fileId).files[0];if(!f)return alert("사진을 선택하세요.");try{const data=await compress(f);const name=document.getElementById(nameId).value.trim()||myName();localStorage.setItem("famName",name);await db.collection("photos").add(Object.assign({author:name,data,createdAt:firebase.firestore.FieldValue.serverTimestamp()},extra||{}));document.getElementById(fileId).value="";if(extra&&extra.album==='특별관'){renderGallery();}else{curAlbum='개인 사진';document.querySelectorAll('#albumCards .album').forEach(b=>{b.classList.toggle('on',(b.textContent||'').includes('개인 사진'));});renderGallery();}}catch(err){alert("사진 올리기 실패: "+(err&&err.message?err.message:err));}}
+async function uploadPhoto(fileId,nameId,extra){fileId=fileId||"photoFile";nameId=nameId||"photoName";const f=document.getElementById(fileId).files[0];if(!f)return alert("사진을 선택하세요.");try{const data=await compress(f);const name=document.getElementById(nameId).value.trim()||myName();localStorage.setItem("famName",name);await db.collection("photos").add(Object.assign({author:name,data,createdAt:firebase.firestore.FieldValue.serverTimestamp()},extra||{}));document.getElementById(fileId).value="";toast('✅ 사진이 올라갔어요!');if(extra&&extra.album==='특별관'){renderGallery();}else{curAlbum='개인 사진';document.querySelectorAll('#albumCards .album').forEach(b=>{b.classList.toggle('on',(b.textContent||'').includes('개인 사진'));});renderGallery();}}catch(err){alert("사진 올리기 실패: "+(err&&err.message?err.message:err));}}
 let curAlbum='단체 사진';
 function renderAlbums(){
   const box=document.getElementById('albumCards');
@@ -265,28 +265,58 @@ function renderAlbums(){
   box.innerHTML=covers.map(([name,src],i)=>`<button class="album${i===0?' on':''}" onclick="setAlbum('${name}',this)"><img src="${src}" alt="${name}">${name==='특별관'?'<span class="albumLabel">그날들</span>':''}</button>`).join('');
 }
 renderAlbums();
-function seedPhotos(){
+async function seedPhotos(){
   const hero=document.querySelector('.hero img');
   const strip=[...document.querySelectorAll('.strip img')];
   const albumByStrip=['짤방','개인 사진','개인 사진','개인 사진','개인 사진','개인 사진','개인 사진','개인 사진','짤방','짤방','개인 사진'];
   const seeds=[];
   if(hero) seeds.push({album:'단체 사진', src:hero.src});
   strip.forEach((im,i)=>seeds.push({album:albumByStrip[i]||'가족', src:im.src}));
+  seeds.forEach((p,i)=>{p.idx=i;p.origAlbum=p.album;});
+  try{
+    const ov=await db.collection('seedAlbums').get();
+    ov.docs.forEach(d=>{const m=/^seed-(\d+)$/.exec(d.id);if(!m)return;const s2=seeds[+m[1]];if(!s2)return;const v=d.data();if(v.album)s2.album=v.album;if(v.event!==undefined)s2.event=v.event;});
+  }catch(e){}
   return seeds;
 }
 let curEvent=null;
 function setAlbum(a,btn){curAlbum=a;curEvent=null;document.querySelectorAll('#albumCards .album').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderGallery();}
+function toast(msg){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#2e7d32;color:#fff;padding:12px 20px;border-radius:999px;font-weight:700;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.25)';document.body.appendChild(t);}t.textContent=msg;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>{t.style.display='none';},3500);}
+function moveSel(kind,id,curKey,evs){
+  let opts='<option value="">앨범 이동 ▾</option>';
+  ['단체 사진','개인 사진','짤방'].forEach(a=>{if(a!==curKey)opts+=`<option value="${a}">${a}</option>`;});
+  (evs||[]).forEach(n=>{if('특별관|'+n!==curKey)opts+=`<option value="특별관|${esc(n)}">특별관 › ${esc(n)}</option>`;});
+  const fn=kind==='seed'?'moveSeed':'movePhoto';
+  return `<select class="mini" onchange="${fn}('${id}',this.value)">${opts}</select>`;
+}
+async function movePhoto(id,val){
+  if(!val)return;
+  try{
+    if(val.indexOf('특별관|')===0){await db.collection('photos').doc(id).update({album:'특별관',event:val.slice(4)});}
+    else{await db.collection('photos').doc(id).update({album:val,event:firebase.firestore.FieldValue.delete()});}
+    toast('✅ 이동했어요!');renderGallery();
+  }catch(err){alert('이동 실패: '+(err&&err.message?err.message:err));}
+}
+async function moveSeed(idx,val){
+  if(!val)return;
+  try{
+    if(val.indexOf('특별관|')===0){await db.collection('seedAlbums').doc('seed-'+idx).set({album:'특별관',event:val.slice(4)});}
+    else{await db.collection('seedAlbums').doc('seed-'+idx).set({album:val,event:firebase.firestore.FieldValue.delete()});}
+    toast('✅ 이동했어요!');renderGallery();
+  }catch(err){alert('이동 실패: '+(err&&err.message?err.message:err));}
+}
 async function renderGallery(){
   const grid=document.getElementById('photoGrid');
   const up=document.getElementById('mainUploadCard');
   if(up)up.style.display=curAlbum==='특별관'?'none':'';
   if(curAlbum==='특별관'){await renderSpecial();return;}
-  const seeds=seedPhotos().filter(p=>p.album===curAlbum);
-  let html=seeds.map((p,i)=>`<div><img src="${p.src}"><div style="font-size:12px;color:#999;margin-top:4px">${p.album} <a href="${p.src}" download="가족사진-${p.album}-${i+1}.jpg" class="mini" style="text-decoration:none" onclick="return confirm('다운로드 하시겠습니까?')">저장</a></div></div>`).join('');
-  if(curAlbum==='개인 사진'){
-    const q=await db.collection('photos').orderBy('createdAt','desc').limit(100).get();
-    html+=q.docs.filter(d=>d.data().album!=='특별관').map(d=>`<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <a href="${d.data().data}" download="가족사진-${esc(d.data().author)}.jpg" class="mini" style="text-decoration:none" onclick="return confirm('다운로드 하시겠습니까?')">저장</a> <button class="mini" onclick="delDoc('photos','${d.id}');renderGallery()">삭제</button></div></div>`).join('');
-  }
+  const evs=await db.collection('eventAlbums').orderBy('createdAt','desc').limit(50).get().then(x=>x.docs.map(d=>d.data().name)).catch(()=>[]);
+  const allSeeds=await seedPhotos();
+  const seeds=allSeeds.filter(p=>p.album===curAlbum);
+  let html=seeds.map(p=>`<div><img src="${p.src}"><div style="font-size:12px;color:#999;margin-top:4px">${p.album} <a href="${p.src}" download="가족사진-${p.album}-${p.idx+1}.jpg" class="mini" style="text-decoration:none" onclick="return confirm('다운로드 하시겠습니까?')">저장</a> ${moveSel('seed',p.idx,p.album,evs)}</div></div>`).join('');
+  const q=await db.collection('photos').orderBy('createdAt','desc').limit(100).get();
+  const docs=q.docs.filter(d=>{const a=d.data().album;if(curAlbum==='개인 사진')return a===undefined||a===null||a==='개인 사진';return a===curAlbum;});
+  html+=docs.map(d=>{const cur=d.data().album||'개인 사진';return `<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <a href="${d.data().data}" download="가족사진-${esc(d.data().author)}.jpg" class="mini" style="text-decoration:none" onclick="return confirm('다운로드 하시겠습니까?')">저장</a> <button class="mini" onclick="delDoc('photos','${d.id}');renderGallery()">삭제</button> ${moveSel('doc',d.id,cur,evs)}</div></div>`;}).join('');
   grid.innerHTML=html||'<p>이 앨범에 사진이 없어요.</p>';
 }
 function ts(v){return v&&v.toMillis?v.toMillis():(v||0);}
@@ -295,9 +325,12 @@ async function renderSpecial(){
   if(curEvent){
     const q=await db.collection('photos').limit(200).get();
     const docs=q.docs.filter(d=>{const x=d.data();return x.album==='특별관'&&x.event===curEvent;}).sort((a,b)=>ts(b.data().createdAt)-ts(a.data().createdAt));
+    const evs=await db.collection('eventAlbums').orderBy('createdAt','desc').limit(50).get().then(x=>x.docs.map(d=>d.data().name)).catch(()=>[]);
+    const movedSeeds=(await seedPhotos()).filter(p=>p.album==='특별관'&&p.event===curEvent);
+    const curKey='특별관|'+curEvent;
     let html=`<div class="card"><button class="mini" onclick="curEvent=null;renderGallery()">← 행사 목록</button> <b style="font-size:17px">${esc(curEvent)}</b></div>`;
-    if(!docs.length)html+='<p>아직 사진이 없어요. 아래에서 올려보세요.</p>';
-    html+=`<div class="grid">`+docs.map(d=>`<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <a href="${d.data().data}" download="가족사진-${esc(d.data().author)}.jpg" class="mini" style="text-decoration:none" onclick="return confirm('다운로드 하시겠습니까?')">저장</a> <button class="mini" onclick="delDoc('photos','${d.id}');renderGallery()">삭제</button></div></div>`).join('')+`</div>`;
+    if(!docs.length&&!movedSeeds.length)html+='<p>아직 사진이 없어요. 아래에서 올려보세요.</p>';
+    html+=`<div class="grid">`+docs.map(d=>`<div><img src="${d.data().data}"><div style="font-size:12px;color:#999;margin-top:4px">${esc(d.data().author)} <a href="${d.data().data}" download="가족사진-${esc(d.data().author)}.jpg" class="mini" style="text-decoration:none" onclick="return confirm('다운로드 하시겠습니까?')">저장</a> <button class="mini" onclick="delDoc('photos','${d.id}');renderGallery()">삭제</button> ${moveSel('doc',d.id,curKey,evs)}</div></div>`).join('')+movedSeeds.map(p=>`<div><img src="${p.src}"><div style="font-size:12px;color:#999;margin-top:4px">기본 사진 <a href="${p.src}" download="가족사진-기본-${p.idx+1}.jpg" class="mini" style="text-decoration:none" onclick="return confirm('다운로드 하시겠습니까?')">저장</a> ${moveSel('seed',p.idx,curKey,evs)}</div></div>`).join('')+`</div>`;
     html+=`<div class="card"><input type="file" id="eventPhotoFile" accept="image/*"><input id="eventPhotoName" placeholder="이름"><button class="act" onclick="uploadPhoto('eventPhotoFile','eventPhotoName',{album:'특별관',event:curEvent})">사진 올리기</button></div>`;
     grid.innerHTML=html;
     return;
@@ -305,13 +338,15 @@ async function renderSpecial(){
   const aq=await db.collection('eventAlbums').orderBy('createdAt','desc').limit(50).get();
   const pq=await db.collection('photos').limit(200).get();
   const specials=pq.docs.filter(d=>d.data().album==='특별관');
+  const movedSeedsAll=(await seedPhotos()).filter(p=>p.album==='특별관');
   let html=`<div class="card"><input id="eventName" placeholder="행사 이름 (예: 칠순잔치, 생일 파티)"><button class="act" onclick="createEvent()">행사 만들기</button><p style="font-size:12px;color:var(--muted)">칠순잔치, 팔순잔치, 생일 파티 같은 행사 이름을 만들어 사진을 모아보세요.</p></div>`;
   if(!aq.docs.length)html+='<p>아직 만든 행사가 없어요. 위에서 행사 이름을 만들어보세요.</p>';
   aq.docs.forEach(doc=>{
     const name=doc.data().name;
     const ph=specials.filter(d=>d.data().event===name);
-    const thumb=ph.length?ph[0].data().data:'';
-    html+=`<div class="card event-card" data-name="${esc(name)}" style="cursor:pointer;display:flex;gap:12px;align-items:center">${thumb?`<img src="${thumb}" style="width:64px;height:64px;object-fit:cover;border-radius:12px">`:`<div style="width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,#ff6b4a,#ff9e57);display:flex;align-items:center;justify-content:center;font-size:28px">🎉</div>`}<div style="flex:1"><b>${esc(name)}</b><p style="color:var(--muted);font-size:13px;margin:2px 0">사진 ${ph.length}장</p></div><button class="mini event-del">삭제</button></div>`;
+    const sph=movedSeedsAll.filter(p=>p.event===name);
+    const thumb=ph.length?ph[0].data().data:(sph.length?sph[0].src:'');
+    html+=`<div class="card event-card" data-name="${esc(name)}" style="cursor:pointer;display:flex;gap:12px;align-items:center">${thumb?`<img src="${thumb}" style="width:64px;height:64px;object-fit:cover;border-radius:12px">`:`<div style="width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,#ff6b4a,#ff9e57);display:flex;align-items:center;justify-content:center;font-size:28px">🎉</div>`}<div style="flex:1"><b>${esc(name)}</b><p style="color:var(--muted);font-size:13px;margin:2px 0">사진 ${ph.length+sph.length}장</p></div><button class="mini event-del">삭제</button></div>`;
   });
   grid.innerHTML=html;
   grid.querySelectorAll('.event-card').forEach(el=>{
@@ -320,10 +355,14 @@ async function renderSpecial(){
   });
 }
 async function createEvent(){
-  const el=document.getElementById('eventName');const name=(el.value||'').trim();
-  if(!name){alert('행사 이름을 입력하세요.');return;}
-  try{await db.collection('eventAlbums').add({name,createdAt:Date.now(),author:'가족'});el.value='';renderGallery();}
-  catch(err){alert('행사 만들기 실패: '+(err&&err.message?err.message:err));}
+  try{
+    const el=document.getElementById('eventName');
+    if(!el){alert('행사 입력란을 찾을 수 없어요. 그날들 첫 화면에서 다시 시도하세요.');return;}
+    const name=(el.value||'').trim();
+    if(!name){alert('행사 이름을 입력하세요.');return;}
+    await db.collection('eventAlbums').add({name,createdAt:Date.now(),author:'가족'});
+    el.value='';toast('✅ 행사가 만들어졌어요!');renderGallery();
+  }catch(err){alert('행사 만들기 실패: '+(err&&err.message?err.message:err));}
 }
 async function deleteEvent(name){
   if(!confirm('['+name+'] 행사와 안의 사진을 모두 삭제할까요?'))return;
