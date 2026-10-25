@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🕵️ 가족 마피아 게임</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+body{font-family:'Noto Sans KR',sans-serif;background:#fff7ed;margin:0;padding:16px;color:#333}
+.wrap{max-width:640px;margin:0 auto}
+h1{font-size:24px}
+.card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.08);margin-bottom:12px}
+input,button{font-size:16px;padding:10px 14px;border-radius:10px;border:1px solid #ddd}
+button{background:#ff8c42;color:#fff;border:0;font-weight:700;cursor:pointer}
+button.ghost{background:#eee;color:#333}
+button:disabled{opacity:.5}
+.pill{display:inline-block;padding:4px 10px;border-radius:999px;background:#ffe8c7;font-size:13px;margin:2px}
+.dead{opacity:.45;text-decoration:line-through}
+.role{font-size:20px;font-weight:900}
+.msg{padding:8px 10px;border-radius:10px;background:#f5f5f5;margin:4px 0}
+.msg b{color:#b3541e}
+.voted{outline:3px solid #ff8c42}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>🕵️ 가족 마피아 게임</h1>
+<div id="gate" class="card">가족 사이트에 로그인한 뒤에 들어올 수 있어요. <a href="./">가족 사이트로 가기</a></div>
+<div id="game" style="display:none">
+  <div class="card">
+    <div id="phaseLine" style="font-weight:900;font-size:18px"></div>
+    <div id="infoLine" style="color:#777;margin-top:4px"></div>
+    <div id="myRole" style="margin-top:10px"></div>
+  </div>
+  <div class="card" id="joinCard">
+    <input id="nameInput" placeholder="닉네임 (예: 아빠, 엄마)" maxlength="10">
+    <button onclick="joinGame()">참여하기</button>
+    <p style="color:#777;font-size:13px">한 기기당 한 명으로 참여해요. 닉네임은 이 기기에 저장돼요.</p>
+  </div>
+  <div class="card">
+    <b>참여자</b>
+    <div id="playerList"></div>
+    <div style="margin-top:10px"><button class="ghost" onclick="leaveGame()">나가기</button></div>
+  </div>
+  <div class="card" id="actionCard" style="display:none">
+    <b id="actionTitle">행동</b>
+    <div id="targetList" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"></div>
+    <div id="actionNote" style="color:#777;font-size:13px;margin-top:8px"></div>
+  </div>
+  <div class="card" id="hostCard" style="display:none">
+    <b>진행 (방장)</b>
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap" id="hostBtns"></div>
+  </div>
+  <div class="card">
+    <b>💬 낮 채팅</b>
+    <div id="chatBox" style="max-height:260px;overflow:auto;margin:8px 0"></div>
+    <div style="display:flex;gap:8px"><input id="chatInput" placeholder="메시지" style="flex:1"><button onclick="sendChat()">전송</button></div>
+    <p style="color:#777;font-size:13px">낮에만 채팅을 보낼 수 있어요. 죽은 사람은 채팅을 보낼 수 없어요.</p>
+  </div>
+  <div class="card" id="resultCard" style="display:none"></div>
+</div>
+</div>
+<script>
+firebase.initializeApp({apiKey:"AIzaSyBKxVL_tkaFos6CMKEUX7LUWuGcJOC5-yU",authDomain:"family-hub-7681f.firebaseapp.com",projectId:"family-hub-7681f",storageBucket:"family-hub-7681f.firebasestorage.app",messagingSenderId:"407038030549",appId:"1:407038030549:web:7b548db3755940b2bd685c"});
+const auth=firebase.auth(),db=firebase.firestore();
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let deviceId=localStorage.getItem('mafiaDevice');
+if(!deviceId){deviceId='d'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);localStorage.setItem('mafiaDevice',deviceId);}
+let myName=localStorage.getItem('mafiaName')||'';
+let game=null,players=[],votes=[],lastChat=[],gameDocReady=false;
+const GAME='game';
+const ROLE_KR={mafia:'🕵️ 마피아',citizen:'👤 시민',police:'👮 경찰',doctor:'🩺 의사'};
+const pDoc=id=>db.collection('mafiaPlayers').doc(id);
+const gDoc=()=>db.collection('mafia').doc(GAME);
+
+auth.onAuthStateChanged(u=>{
+  if(!u){document.getElementById('gate').style.display='block';document.getElementById('game').style.display='none';return;}
+  document.getElementById('gate').style.display='none';document.getElementById('game').style.display='block';
+  document.getElementById('nameInput').value=myName;
+  gDoc().onSnapshot(d=>{
+    if(!d.exists&&!gameDocReady){gameDocReady=true;gDoc().set({phase:'lobby',round:0,gameNo:1,winner:null,lastEvent:'',policeCheck:null,doctorSave:null});return;}
+    game=d.data();render();
+  });
+  db.collection('mafiaPlayers').orderBy('joinedAt').onSnapshot(s=>{players=s.docs.map(d=>({id:d.id,...d.data()}));render();});
+  db.collection('mafiaVotes').onSnapshot(s=>{votes=s.docs.map(d=>({id:d.id,...d.data()}));render();});
+  db.collection('mafiaChat').orderBy('createdAt').onSnapshot(s=>{lastChat=s.docs.map(d=>d.data());renderChat();});
+});
+function me(){return players.find(p=>p.id===deviceId)||null;}
+function isHost(){return players.length&&players[0].id===deviceId;}
+function alivePlayers(){return players.filter(p=>p.alive&&p.role);}
+function myVote(phase){return votes.find(v=>v.gameNo===game.gameNo&&v.phase===phase&&v.round===game.round&&v.from===deviceId);}
+async function joinGame(){
+  const name=document.getElementById('nameInput').value.trim();
+  if(!name){alert('닉네임을 입력하세요.');return;}
+  myName=name;localStorage.setItem('mafiaName',name);
+  const cur=me();
+  const data={name};
+  if(!cur||!game||game.phase==='lobby'){data.alive=true;data.role=null;data.joinedAt=Date.now();}
+  await pDoc(deviceId).set(data,{merge:true});
+}
+async function leaveGame(){
+  if(!confirm('게임에서 나갈까요?'))return;
+  await pDoc(deviceId).delete();
+}
+function assignRoles(list){
+  const n=list.length,roles=[];
+  const nMafia=n>=7?2:1;
+  for(let i=0;i<nMafia;i++)roles.push('mafia');
+  if(n>=6)roles.push('police');
+  if(n>=7)roles.push('doctor');
+  while(roles.length<n)roles.push('citizen');
+  for(let i=roles.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=roles[i];roles[i]=roles[j];roles[j]=t;}
+  return roles;
+}
+async function startGame(){
+  if(!game||game.phase!=='lobby')return;
+  if(players.length<4){alert('최소 4명이 필요해요.');return;}
+  const roles=assignRoles(players);
+  const batch=db.batch();
+  players.forEach((p,i)=>{batch.set(pDoc(p.id),{role:roles[i],alive:true},{merge:true});});
+  batch.set(gDoc(),{phase:'night',round:1,winner:null,lastEvent:'게임 시작! 밤이 되었습니다. 마피아·경찰·의사는 행동을 선택하세요.',policeCheck:null,doctorSave:null},{merge:true});
+  await batch.commit();
+}
+async function newGame(){
+  const batch=db.batch();
+  players.forEach(p=>{batch.set(pDoc(p.id),{alive:true,role:null},{merge:true});});
+  batch.set(gDoc(),{phase:'lobby',round:0,gameNo:(game.gameNo||1)+1,winner:null,lastEvent:'새 게임 대기 중입니다.',policeCheck:null,doctorSave:null},{merge:true});
+  await batch.commit();
+}
+async function vote(target){
+  const m=me();if(!m||!m.alive)return;
+  await db.collection('mafiaVotes').doc(game.phase+game.round+'_'+deviceId).set({gameNo:game.gameNo,phase:game.phase,round:game.round,from:deviceId,fromRole:game.phase==='night'?m.role:'day',target});
+}
+async function policeCheck(targetId){
+  const t=players.find(p=>p.id===targetId);if(!t)return;
+  await gDoc().set({policeCheck:{targetId,targetName:t.name,isMafia:t.role==='mafia'}},{merge:true});
+}
+async function doctorSave(targetId){
+  await gDoc().set({doctorSave:targetId},{merge:true});
+}
+function countVotes(phase,fromRole){
+  const cnt={};
+  votes.filter(v=>v.gameNo===game.gameNo&&v.phase===phase&&v.round===game.round&&v.target&&(!fromRole||v.fromRole===fromRole)&&players.find(p=>p.id===v.from&&p.alive)).forEach(v=>{cnt[v.target]=(cnt[v.target]||0)+1;});
+  let kill=null,best=0,tie=false;
+  for(const t in cnt){if(cnt[t]>best){best=cnt[t];kill=t;tie=false;}else if(cnt[t]===best){tie=true;}}
+  if(tie)kill=null;
+  return kill;
+}
+function winnerAfter(killId){
+  const aliveAfter=players.filter(p=>p.alive&&p.id!==killId);
+  const m=aliveAfter.filter(p=>p.role==='mafia').length;
+  const o=aliveAfter.filter(p=>p.role!=='mafia').length;
+  if(m===0)return 'citizens';
+  if(m>=o)return 'mafia';
+  return null;
+}
+async function resolveNight(){
+  const kill=countVotes('night','mafia');
+  const saved=game.doctorSave;
+  const batch=db.batch();
+  let event='';
+  if(kill&&kill!==saved){batch.set(pDoc(kill),{alive:false},{merge:true});event=players.find(p=>p.id===kill).name+'님이 밤에 사망했습니다.';}
+  else if(kill&&kill===saved){event='밤에 누군가 공격받았지만 의사가 살렸습니다.';}
+  else{event='밤에 아무 일도 일어나지 않았습니다.';}
+  const winner=winnerAfter(kill&&kill!==saved?kill:null);
+  batch.set(gDoc(),{phase:winner?'over':'day',winner,lastEvent:event},{merge:true});
+  await batch.commit();
+}
+async function resolveDay(){
+  const kill=countVotes('day',null);
+  const batch=db.batch();
+  let event='';
+  if(kill){batch.set(pDoc(kill),{alive:false},{merge:true});event=players.find(p=>p.id===kill).name+'님이 투표로 처형됐습니다.';}
+  else{event='투표 결과 아무도 처형되지 않았습니다.';}
+  const winner=winnerAfter(kill);
+  batch.set(gDoc(),{phase:winner?'over':'night',round:game.round+1,winner,lastEvent:event,policeCheck:null,doctorSave:null},{merge:true});
+  await batch.commit();
+}
+async function sendChat(){
+  const el=document.getElementById('chatInput');
+  const t=el.value.trim();if(!t)return;
+  const m=me();
+  if(!game||game.phase!=='day'||!m||!m.alive){alert('낮에만, 살아있는 사람만 채팅할 수 있어요.');return;}
+  el.value='';
+  await db.collection('mafiaChat').add({gameNo:game.gameNo,name:m.name,text:t,createdAt:Date.now()});
+}
+function targetBtns(list,fn,selectedId){
+  return list.map(p=>`<button class="${selectedId===p.id?'voted':''}" onclick="${fn}('${p.id}')">${esc(p.name)}</button>`).join(' ');
+}
+function renderChat(){
+  const box=document.getElementById('chatBox');
+  const msgs=lastChat.filter(c=>!game||c.gameNo===game.gameNo);
+  box.innerHTML=msgs.map(c=>`<div class="msg"><b>${esc(c.name)}</b> ${esc(c.text)}</div>`).join('')||'<p style="color:#999">아직 채팅이 없어요.</p>';
+  box.scrollTop=box.scrollHeight;
+}
+function render(){
+  if(!game)return;
+  const m=me();
+  const phaseKR={lobby:'⏳ 대기 중',night:'🌙 밤 '+game.round+'일째',day:'☀️ 낮 '+game.round+'일째',over:'🏁 게임 종료'}[game.phase];
+  document.getElementById('phaseLine').textContent=phaseKR;
+  document.getElementById('infoLine').textContent=game.lastEvent||'';
+  document.getElementById('joinCard').style.display=m?'none':'block';
+  let roleHtml='';
+  if(!m)roleHtml='아직 참여하지 않았어요. 닉네임을 입력하고 참여하세요.';
+  else if(game.phase==='lobby')roleHtml='참여 완료! 방장이 게임을 시작하면 역할이 정해져요.';
+  else if(!m.role)roleHtml='관전 중입니다.';
+  else{
+    roleHtml='<span class="role">당신의 역할: '+ROLE_KR[m.role]+'</span>';
+    if(m.role==='mafia'){
+      const mates=alivePlayers().filter(p=>p.role==='mafia'&&p.id!==deviceId).map(p=>p.name);
+      if(mates.length)roleHtml+='<div style="margin-top:6px">우리 편 마피아: '+mates.map(esc).join(', ')+'</div>';
+    }
+    if(m.role==='police'&&game.policeCheck)roleHtml+='<div style="margin-top:6px">🔍 조사 결과: '+esc(game.policeCheck.targetName)+'님은 '+(game.policeCheck.isMafia?'마피아입니다!':'마피아가 아닙니다.')+'</div>';
+    if(!m.alive)roleHtml+='<div style="margin-top:6px">💀 당신은 죽었습니다. 관전만 할 수 있어요.</div>';
+  }
+  document.getElementById('myRole').innerHTML=roleHtml;
+  document.getElementById('playerList').innerHTML=players.map(p=>{
+    let label=esc(p.name);
+    if(game.phase==='over'&&p.role)label+=' ('+ROLE_KR[p.role]+')';
+    if(players[0]&&players[0].id===p.id)label+=' 👑';
+    return `<span class="pill ${p.alive?'':'dead'}">${label}</span>`;
+  }).join('')||'아직 아무도 없어요.';
+  const ac=document.getElementById('actionCard');
+  const tl=document.getElementById('targetList');
+  const at=document.getElementById('actionTitle');
+  const an=document.getElementById('actionNote');
+  ac.style.display='none';an.textContent='';
+  if(m&&m.alive&&m.role&&game.phase==='night'){
+    ac.style.display='block';
+    if(m.role==='mafia'){
+      at.textContent='🌙 밤 행동: 제거할 사람을 고르세요';
+      tl.innerHTML=targetBtns(alivePlayers().filter(p=>p.role!=='mafia'), 'vote', (myVote('night')||{}).target);
+      an.textContent='마피아가 여러 명이면 표가 많은 대상이 제거돼요. 동점이면 아무도 안 죽어요.';
+    }else if(m.role==='police'){
+      at.textContent='🔍 밤 행동: 조사할 사람을 고르세요';
+      tl.innerHTML=targetBtns(alivePlayers().filter(p=>p.id!==deviceId), 'policeCheck', game.policeCheck?game.policeCheck.targetId:null);
+    }else if(m.role==='doctor'){
+      at.textContent='🩺 밤 행동: 보호할 사람을 고르세요';
+      tl.innerHTML=targetBtns(alivePlayers(), 'doctorSave', game.doctorSave||null);
+    }else{
+      ac.style.display='none';
+    }
+  }else if(m&&m.alive&&m.role&&game.phase==='day'){
+    ac.style.display='block';
+    at.textContent='☀️ 낮 투표: 처형할 사람을 고르세요';
+    const v=myVote('day');
+    tl.innerHTML=targetBtns(alivePlayers().filter(p=>p.id!==deviceId), 'vote', v?v.target:null)+' <button class="ghost" onclick="vote(null)">기권</button>';
+    const cnt=votes.filter(x=>x.gameNo===game.gameNo&&x.phase==='day'&&x.round===game.round&&x.target).length;
+    an.textContent='투표 참여: '+cnt+'명. 방장이 투표를 종료하면 표가 가장 많은 사람이 처형돼요. 동점이면 아무도 안 죽어요.';
+  }else if(game.phase==='night'&&m&&m.alive&&m.role==='citizen'){
+    ac.style.display='block';
+    at.textContent='🌙 밤입니다';
+    tl.innerHTML='아침을 기다리세요. 마피아·경찰·의사가 행동 중이에요.';
+  }
+  const hc=document.getElementById('hostCard');
+  const hb=document.getElementById('hostBtns');
+  if(isHost()){
+    hc.style.display='block';
+    if(game.phase==='lobby')hb.innerHTML='<button onclick="startGame()">게임 시작 ('+players.length+'명)</button>';
+    else if(game.phase==='night')hb.innerHTML='<button onclick="resolveNight()">아침으로 (밤 종료)</button>';
+    else if(game.phase==='day')hb.innerHTML='<button onclick="resolveDay()">투표 종료</button>';
+    else hb.innerHTML='<button onclick="newGame()">새 게임 (로비로)</button>';
+  }else hc.style.display='none';
+  const rc=document.getElementById('resultCard');
+  if(game.phase==='over'){
+    rc.style.display='block';
+    rc.innerHTML='<b>🏁 '+(game.winner==='mafia'?'마피아 승리!':'시민 승리!')+'</b><p>'+players.map(p=>esc(p.name)+' — '+(p.role?ROLE_KR[p.role]:'관전')).join('<br>')+'</p>';
+  }else rc.style.display='none';
+  const ci=document.getElementById('chatInput');
+  ci.disabled=!(game.phase==='day'&&m&&m.alive);
+  renderChat();
+}
+</script>
+</body>
+</html>
