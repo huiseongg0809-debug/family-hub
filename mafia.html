@@ -9,25 +9,34 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
-body{font-family:'Noto Sans KR',sans-serif;background:#fff7ed;margin:0;padding:16px;color:#333}
+body{font-family:-apple-system,'Noto Sans KR',sans-serif;background:radial-gradient(1000px 500px at 50% -10%,#2a2350 0%,#12142a 55%,#0b0d20 100%);margin:0;padding:20px 14px 32px;color:#f2f1fa;min-height:100vh;box-sizing:border-box}
 .wrap{max-width:640px;margin:0 auto}
-h1{font-size:24px}
-.card{background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.08);margin-bottom:12px}
-input,button{font-size:16px;padding:10px 14px;border-radius:10px;border:1px solid #ddd}
-button{background:#ff8c42;color:#fff;border:0;font-weight:700;cursor:pointer}
-button.ghost{background:#eee;color:#333}
+h1{font-size:28px;letter-spacing:-.5px;margin:4px 0 2px}
+h1 .ico{filter:drop-shadow(0 4px 10px rgba(0,0,0,.4))}
+h1 .tt{background:linear-gradient(90deg,#ffd166,#ff7a45);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:#a7a3c8;font-size:14px;margin:0 0 16px}
+.card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.35);margin-bottom:14px;backdrop-filter:blur(10px)}
+input,button{font-size:16px;padding:12px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.16)}
+input{background:rgba(0,0,0,.3);color:#fff;outline:none}
+input:focus{border-color:#ffb347;box-shadow:0 0 0 3px rgba(255,179,71,.25)}
+input::placeholder{color:#8b88a8}
+button{background:linear-gradient(135deg,#ffb347,#ff6b4a);color:#fff;border:0;font-weight:800;cursor:pointer;box-shadow:0 6px 16px rgba(255,107,74,.35)}
+button:active{transform:translateY(1px)}
+button.ghost{background:rgba(255,255,255,.1);color:#e8e6f5;box-shadow:none}
 button:disabled{opacity:.5}
-.pill{display:inline-block;padding:4px 10px;border-radius:999px;background:#ffe8c7;font-size:13px;margin:2px}
-.dead{opacity:.45;text-decoration:line-through}
-.role{font-size:20px;font-weight:900}
-.msg{padding:8px 10px;border-radius:10px;background:#f5f5f5;margin:4px 0}
-.msg b{color:#b3541e}
-.voted{outline:3px solid #ff8c42}
+.pill{display:inline-block;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);font-size:14px;margin:3px}
+.dead{opacity:.4;text-decoration:line-through}
+.role{font-size:21px;font-weight:900;background:linear-gradient(90deg,#ffd166,#ff7a45);-webkit-background-clip:text;background-clip:text;color:transparent}
+.msg{padding:10px 12px;border-radius:14px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.08);margin:6px 0}
+.msg b{color:#ffcf7d}
+.voted{outline:3px solid #ffb347;box-shadow:0 0 0 6px rgba(255,179,71,.18)}
+a{color:#ffcf7d}
+#phaseLine{font-size:20px}
 </style>
 </head>
 <body>
 <div class="wrap">
-<h1>🕵️ 가족 마피아 게임</h1>
+<h1><span class="ico">🕵️</span> <span class="tt">가족 마피아 게임</span></h1><p class="sub">밤에는 마피아, 낮에는 투표 — 가족과 함께하는 실시간 추리 게임</p>
 <div id="gate" class="card">가족 사이트에 로그인한 뒤에 들어올 수 있어요. <a href="./">가족 사이트로 가기</a></div>
 <div id="game" style="display:none">
   <div class="card">
